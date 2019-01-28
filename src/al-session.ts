@@ -2,23 +2,72 @@
  * Module for maintaining Alert Logic session data
  */
 
-const { storage } = require('local-storage-fallback');
+import localStorageFallback from 'local-storage-fallback';
 
-const alSession = function alSession() {
-  /**
-   * Deal with persistent storage requirements
-   */
-  this.Storage = storage;
+interface UserTimeStamp {
+  at: number;
+  by: string;
+}
+
+export interface AIMSAuthentication {
+  user: AIMSUser;
+  account?: AIMSAccount;
+  token: string;
+  token_expiration: number;
+}
+
+interface AIMSUser {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  locked: boolean;
+  version: number;
+  created: UserTimeStamp;
+  modified: UserTimeStamp;
+}
+
+export interface AIMSAccount {
+  id: string;
+  name: string;
+  active: boolean;
+  version?: number;
+  accessible_locations: string[];
+  default_location: string;
+  mfa_required?: boolean;
+  created: UserTimeStamp;
+  modified: UserTimeStamp;
+}
+
+interface AIMSSession {
+  authentication: AIMSAuthentication;
+  active: AIMSAccount;
+}
+
+class ALSession {
+  constructor() {
+    /**
+    * Initialise whatever may be persisted
+    */
+    const persistedSession = this.getStorage();
+    if (this.validateProperty(persistedSession, 'authentication')) {
+      this.setAuthentication(persistedSession.authentication);
+    }
+    if (this.validateProperty(persistedSession, 'active')) {
+      this.setActive(persistedSession.active);
+    }
+    this.activateSession();
+  }
 
   /**
    * Deal with an Active Session
    */
-  this.sessionIsActive = false;
+  sessionIsActive = false;
 
   /**
    * Create our default session object
    */
-  this.cacheSession = {
+  defaultSession: AIMSSession = {
     authentication: {
       user: {
         id: '0',
@@ -71,38 +120,39 @@ const alSession = function alSession() {
       },
     },
   };
+  cacheSession: AIMSSession = JSON.parse(JSON.stringify(this.defaultSession));
 
   /**
    * Get the current timestamp
    */
-  this.getTimestamp = function getTimestamp() {
+  getTimestamp(): number {
     return new Date().getTime();
-  };
+  }
 
   /**
    * Persist our session
    */
-  this.setStorage = function setStorage() {
+  private setStorage() {
     if (this.sessionIsActive) {
       if (this.validateProperty(this.cacheSession, 'authentication')) {
         if (this.validateProperty(this.cacheSession, 'active')) {
-          this.Storage.setItem('al_session', JSON.stringify(this.cacheSession));
+          localStorageFallback.setItem('al_session', JSON.stringify(this.cacheSession));
         }
       }
     }
-  };
+  }
 
   /**
    * Fetch persisted session
    */
-  this.getStorage = function getStorage() {
-    return JSON.parse(this.Storage.getItem('al_session'));
-  };
+  private getStorage() {
+    return JSON.parse(localStorageFallback.getItem('al_session'));
+  }
 
   /**
    * Validate that a property exists
    */
-  this.validateProperty = function validateProperty(obj, key) {
+  private validateProperty(obj, key) {
     if (obj) {
       const hasProperty = Object.prototype.hasOwnProperty.call(obj, key);
       if (hasProperty) {
@@ -110,14 +160,14 @@ const alSession = function alSession() {
       }
     }
     return false;
-  };
+  }
 
   /**
    * Update 'authentication'
    * Modelled on /aims/v1/authenticate
    * To be called by AIMS Service
    */
-  this.setAuthentication = function setAuthentication(proposal) {
+  setAuthentication(proposal: AIMSAuthentication) {
     if (proposal) {
       if (this.validateProperty(proposal, 'user')) {
         if (this.validateProperty(proposal.user, 'id')) {
@@ -150,7 +200,7 @@ const alSession = function alSession() {
           if (this.validateProperty(proposal.user.modified, 'at')) {
             this.cacheSession.authentication.user.modified.at = proposal.user.modified.at;
           }
-          if (this.validateProperty(proposal.modified, 'by')) {
+          if (this.validateProperty(proposal.user.modified, 'by')) {
             this.cacheSession.authentication.user.modified.by = proposal.user.modified.by;
           }
         }
@@ -199,14 +249,14 @@ const alSession = function alSession() {
       }
       this.setStorage();
     }
-  };
+  }
 
   /**
    * Update 'active'
    * Modelled on /aims/v1/:account_id/account
    * To be called by AIMS Service
    */
-  this.setActive = function setActive(proposal) {
+  setActive(proposal: AIMSAccount) {
     if (proposal) {
       if (this.validateProperty(proposal, 'id')) {
         this.cacheSession.active.id = proposal.id;
@@ -244,154 +294,142 @@ const alSession = function alSession() {
       }
       this.setStorage();
     }
-  };
+  }
 
   /**
    * Convenience function to set token and expiry values
    * Modelled on /aims/v1/:account_id/account
    * To be called by AIMS Service
    */
-  this.setTokenInfo = function setTokenInfo(token, tokenExpiration) {
+  setTokenInfo(token: string, tokenExpiration: number) {
     this.cacheSession.authentication.token = token;
     this.cacheSession.authentication.token_expiration = tokenExpiration;
-  };
+  }
 
   /**
    * Activate Session
    */
-  this.activateSession = function activateSession() {
+  activateSession(): boolean {
     if ((this.cacheSession.authentication.token_expiration * 1000) > this.getTimestamp()) {
       this.sessionIsActive = true;
     }
     return this.isActive();
-  };
+  }
 
   /**
    * Deactivate Session
    */
-  this.deactivateSession = function deactivateSession() {
-    this.cacheSession = {};
+  deactivateSession(): boolean {
+    this.cacheSession = JSON.parse(JSON.stringify(this.defaultSession));
     this.sessionIsActive = false;
-    this.Storage.removeItem('al_session');
+    localStorageFallback.removeItem('al_session');
     return this.isActive();
-  };
+  }
 
   /**
    * Is the Session Active?
    */
-  this.isActive = function isActive() {
+  isActive(): boolean {
     return this.sessionIsActive;
-  };
+  }
 
   /**
    * Get Session
    */
-  this.getSession = function getSession() {
+  getSession(): AIMSSession {
     return this.cacheSession;
-  };
+  }
 
   /**
    * Get Authentication
    */
-  this.getAuthentication = function getAuthentication() {
+  getAuthentication(): AIMSAuthentication {
     return this.cacheSession.authentication;
-  };
+  }
 
   /**
    * Get Active Account
    */
-  this.getActive = function getActive() {
+  getActive(): AIMSAccount {
     return this.cacheSession.active;
-  };
+  }
 
   /**
    * Get Token
    */
-  this.getToken = function getToken() {
+  getToken(): string {
     return this.cacheSession.authentication.token;
-  };
+  }
 
   /**
    * Get Token Expiry
    */
-  this.getTokenExpiry = function getTokenExpiry() {
+  getTokenExpiry(): number {
     return this.cacheSession.authentication.token_expiration;
-  };
+  }
 
   /**
    * Get User ID
    */
-  this.getUserID = function getUserID() {
+  getUserID(): string {
     return this.cacheSession.authentication.user.id;
-  };
+  }
 
   /**
    * Get User Name
    */
-  this.getUserName = function getUserName() {
+  getUserName(): string {
     return this.cacheSession.authentication.user.name;
-  };
+  }
 
   /**
    * Get User Email
    */
-  this.getUserEmail = function getUserEmail() {
+  getUserEmail(): string {
     return this.cacheSession.authentication.user.email;
-  };
+  }
 
   /**
    * Get Account ID - For which the User belongs to
    */
-  this.getUserAccountID = function getUserAccountID() {
+  getUserAccountID(): string {
     return this.cacheSession.authentication.account.id;
-  };
+  }
 
   /**
    * Get acting Account ID - (account the user is currently working in)
    */
-  this.getActiveAccountID = function getActiveAccountID() {
+  getActiveAccountID(): string {
     return this.cacheSession.active.id;
-  };
+  }
 
   /**
    * Get acting Account Name - (account the user is currently working in)
    */
-  this.getActiveAccountName = function getActiveAccountName() {
+  getActiveAccountName(): string {
     return this.cacheSession.active.name;
-  };
+  }
 
   /**
    * Get Default Location for the active account
    */
-  this.getDefaultLocation = function getDefaultLocation() {
+  getDefaultLocation() {
     return this.cacheSession.active.default_location;
-  };
+  }
 
   /**
    * Get Accessible Locations for the active account
    */
-  this.getAccessibleLocations = function getAccessibleLocations() {
+  getAccessibleLocations(): string [] {
     return this.cacheSession.active.accessible_locations;
-  };
+  }
 
   /**
    * Get Accessible Locations for the users account
    */
-  this.getCurrentAccessibleLocations = function getCurrentAccessibleLocations() {
+  getCurrentAccessibleLocations(): string [] {
     return this.cacheSession.authentication.account.accessible_locations;
-  };
-
-  /**
-   * Initialise whatever may be persisted
-   */
-  this.persistedSession = this.getStorage();
-  if (this.validateProperty(this.persistedSession, 'authentication')) {
-    this.setAuthentication(this.persistedSession.authentication);
   }
-  if (this.validateProperty(this.persistedSession, 'active')) {
-    this.setActive(this.persistedSession.active);
-  }
-  this.activateSession();
-};
+}
 
-module.exports = alSession;
+export const alSession = new ALSession();

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/commonjs",
+    "module": "commonjs",
+    "target": "es5",
+    "declaration": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "declarationDir": "./dist/typings/",
+    "lib": [
+      "es2015",
+      "dom"
+    ]
+  },
+  "files": [
+    "./src/index.ts"
+  ]
+}
