@@ -1,6 +1,6 @@
 {
   "name": "@alertlogic/session",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "license": "MIT",
   "description": "A client for maintaining Alert Logic session data",
   "author": {
@@ -34,7 +34,8 @@
     "test-watch": "karma start --no-single-run --auto-watch",
     "build-dev": "npm run clean &&  tsc && webpack --mode=development",
     "build": "webpack",
-    "prebuild": "npm run clean && tsc",
+    "prebuild": "npm run clean && npm run lint && npm run test && tsc",
+    "lint": "tslint -p tsconfig.json",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run build",
     "interactive": "node -i -e \"const ALSession = require('./dist/commonjs/index.js').ALSession;\""
