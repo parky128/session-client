@@ -5,38 +5,38 @@
 import localStorageFallback from 'local-storage-fallback';
 
 interface UserTimeStamp {
-  at: number;
-  by: string;
+  at?: number;
+  by?: string;
 }
 
 export interface AIMSAuthentication {
-  user: AIMSUser;
+  user?: AIMSUser;
   account?: AIMSAccount;
-  token: string;
-  token_expiration: number;
+  token?: string;
+  token_expiration?: number;
 }
 
 interface AIMSUser {
-  id: string;
-  name: string;
-  email: string;
-  active: boolean;
-  locked: boolean;
-  version: number;
-  created: UserTimeStamp;
-  modified: UserTimeStamp;
+  id?: string;
+  name?: string;
+  email?: string;
+  active?: boolean;
+  locked?: boolean;
+  version?: number;
+  created?: UserTimeStamp;
+  modified?: UserTimeStamp;
 }
 
 export interface AIMSAccount {
-  id: string;
-  name: string;
-  active: boolean;
+  id?: string;
+  name?: string;
+  active?: boolean;
   version?: number;
-  accessible_locations: string[];
-  default_location: string;
+  accessible_locations?: string[];
+  default_location?: string;
   mfa_required?: boolean;
-  created: UserTimeStamp;
-  modified: UserTimeStamp;
+  created?: UserTimeStamp;
+  modified?: UserTimeStamp;
 }
 
 interface AIMSSession {
@@ -168,87 +168,85 @@ class ALSession {
    * To be called by AIMS Service
    */
   setAuthentication(proposal: AIMSAuthentication) {
-    if (proposal) {
-      if (this.validateProperty(proposal, 'user')) {
-        if (this.validateProperty(proposal.user, 'id')) {
-          this.cacheSession.authentication.user.id = proposal.user.id;
+    if (this.validateProperty(proposal, 'user')) {
+      if (this.validateProperty(proposal.user, 'id')) {
+        this.cacheSession.authentication.user.id = proposal.user.id;
+      }
+      if (this.validateProperty(proposal.user, 'name')) {
+        this.cacheSession.authentication.user.name = proposal.user.name;
+      }
+      if (this.validateProperty(proposal.user, 'email')) {
+        this.cacheSession.authentication.user.email = proposal.user.email;
+      }
+      if (this.validateProperty(proposal.user, 'active')) {
+        this.cacheSession.authentication.user.active = proposal.user.active;
+      }
+      if (this.validateProperty(proposal.user, 'locked')) {
+        this.cacheSession.authentication.user.locked = proposal.user.locked;
+      }
+      if (this.validateProperty(proposal.user, 'version')) {
+        this.cacheSession.authentication.user.version = proposal.user.version;
+      }
+      if (this.validateProperty(proposal.user, 'created')) {
+        if (this.validateProperty(proposal.user.created, 'at')) {
+          this.cacheSession.authentication.user.created.at = proposal.user.created.at;
         }
-        if (this.validateProperty(proposal.user, 'name')) {
-          this.cacheSession.authentication.user.name = proposal.user.name;
-        }
-        if (this.validateProperty(proposal.user, 'email')) {
-          this.cacheSession.authentication.user.email = proposal.user.email;
-        }
-        if (this.validateProperty(proposal.user, 'active')) {
-          this.cacheSession.authentication.user.active = proposal.user.active;
-        }
-        if (this.validateProperty(proposal.user, 'locked')) {
-          this.cacheSession.authentication.user.locked = proposal.user.locked;
-        }
-        if (this.validateProperty(proposal.user, 'version')) {
-          this.cacheSession.authentication.user.version = proposal.user.version;
-        }
-        if (this.validateProperty(proposal.user, 'created')) {
-          if (this.validateProperty(proposal.user.created, 'at')) {
-            this.cacheSession.authentication.user.created.at = proposal.user.created.at;
-          }
-          if (this.validateProperty(proposal.user.created, 'by')) {
-            this.cacheSession.authentication.user.created.by = proposal.user.created.by;
-          }
-        }
-        if (this.validateProperty(proposal.user, 'modified')) {
-          if (this.validateProperty(proposal.user.modified, 'at')) {
-            this.cacheSession.authentication.user.modified.at = proposal.user.modified.at;
-          }
-          if (this.validateProperty(proposal.user.modified, 'by')) {
-            this.cacheSession.authentication.user.modified.by = proposal.user.modified.by;
-          }
+        if (this.validateProperty(proposal.user.created, 'by')) {
+          this.cacheSession.authentication.user.created.by = proposal.user.created.by;
         }
       }
-      if (this.validateProperty(proposal, 'account')) {
-        if (this.validateProperty(proposal.account, 'id')) {
-          this.cacheSession.authentication.account.id = proposal.account.id;
+      if (this.validateProperty(proposal.user, 'modified')) {
+        if (this.validateProperty(proposal.user.modified, 'at')) {
+          this.cacheSession.authentication.user.modified.at = proposal.user.modified.at;
         }
-        if (this.validateProperty(proposal.account, 'name')) {
-          this.cacheSession.authentication.account.name = proposal.account.name;
-        }
-        if (this.validateProperty(proposal.account, 'active')) {
-          this.cacheSession.authentication.account.active = proposal.account.active;
-        }
-        if (this.validateProperty(proposal.account, 'accessible_locations')) {
-          /* eslint-disable */
-          this.cacheSession.authentication.account.accessible_locations = proposal.account.accessible_locations;
-          /* eslint-enable */
-        }
-        if (this.validateProperty(proposal.account, 'default_location')) {
-          /* eslint-disable */
-          this.cacheSession.authentication.account.default_location = proposal.account.default_location;
-          /* eslint-enable */
-        }
-        if (this.validateProperty(proposal.account, 'created')) {
-          if (this.validateProperty(proposal.account.created, 'at')) {
-            this.cacheSession.authentication.account.created.at = proposal.account.created.at;
-          }
-          if (this.validateProperty(proposal.account.created, 'by')) {
-            this.cacheSession.authentication.account.created.by = proposal.account.created.by;
-          }
-        }
-        if (this.validateProperty(proposal.account, 'modified')) {
-          if (this.validateProperty(proposal.account.modified, 'at')) {
-            this.cacheSession.authentication.account.modified.at = proposal.account.modified.at;
-          }
-          if (this.validateProperty(proposal.account.modified, 'by')) {
-            this.cacheSession.authentication.account.modified.by = proposal.account.modified.by;
-          }
+        if (this.validateProperty(proposal.user.modified, 'by')) {
+          this.cacheSession.authentication.user.modified.by = proposal.user.modified.by;
         }
       }
-      if ((proposal.token_expiration * 1000) > this.getTimestamp()) {
-        this.cacheSession.authentication.token = proposal.token;
-        this.cacheSession.authentication.token_expiration = proposal.token_expiration;
-        this.activateSession();
-      }
-      this.setStorage();
     }
+    if (this.validateProperty(proposal, 'account')) {
+      if (this.validateProperty(proposal.account, 'id')) {
+        this.cacheSession.authentication.account.id = proposal.account.id;
+      }
+      if (this.validateProperty(proposal.account, 'name')) {
+        this.cacheSession.authentication.account.name = proposal.account.name;
+      }
+      if (this.validateProperty(proposal.account, 'active')) {
+        this.cacheSession.authentication.account.active = proposal.account.active;
+      }
+      if (this.validateProperty(proposal.account, 'accessible_locations')) {
+        /* eslint-disable */
+        this.cacheSession.authentication.account.accessible_locations = proposal.account.accessible_locations;
+        /* eslint-enable */
+      }
+      if (this.validateProperty(proposal.account, 'default_location')) {
+        /* eslint-disable */
+        this.cacheSession.authentication.account.default_location = proposal.account.default_location;
+        /* eslint-enable */
+      }
+      if (this.validateProperty(proposal.account, 'created')) {
+        if (this.validateProperty(proposal.account.created, 'at')) {
+          this.cacheSession.authentication.account.created.at = proposal.account.created.at;
+        }
+        if (this.validateProperty(proposal.account.created, 'by')) {
+          this.cacheSession.authentication.account.created.by = proposal.account.created.by;
+        }
+      }
+      if (this.validateProperty(proposal.account, 'modified')) {
+        if (this.validateProperty(proposal.account.modified, 'at')) {
+          this.cacheSession.authentication.account.modified.at = proposal.account.modified.at;
+        }
+        if (this.validateProperty(proposal.account.modified, 'by')) {
+          this.cacheSession.authentication.account.modified.by = proposal.account.modified.by;
+        }
+      }
+    }
+    if ((proposal.token_expiration * 1000) > this.getTimestamp()) {
+      this.cacheSession.authentication.token = proposal.token;
+      this.cacheSession.authentication.token_expiration = proposal.token_expiration;
+      this.activateSession();
+    }
+    this.setStorage();
   }
 
   /**
@@ -257,43 +255,41 @@ class ALSession {
    * To be called by AIMS Service
    */
   setActive(proposal: AIMSAccount) {
-    if (proposal) {
-      if (this.validateProperty(proposal, 'id')) {
-        this.cacheSession.active.id = proposal.id;
-      }
-      if (this.validateProperty(proposal, 'name')) {
-        this.cacheSession.active.name = proposal.name;
-      }
-      if (this.validateProperty(proposal, 'active')) {
-        this.cacheSession.active.active = proposal.active;
-      }
-      if (this.validateProperty(proposal, 'version')) {
-        this.cacheSession.active.version = proposal.version;
-      }
-      if (this.validateProperty(proposal, 'accessible_locations')) {
-        this.cacheSession.active.accessible_locations = proposal.accessible_locations;
-      }
-      if (this.validateProperty(proposal, 'default_location')) {
-        this.cacheSession.active.default_location = proposal.default_location;
-      }
-      if (this.validateProperty(proposal, 'created')) {
-        if (this.validateProperty(proposal.created, 'at')) {
-          this.cacheSession.active.created.at = proposal.created.at;
-        }
-        if (this.validateProperty(proposal.created, 'by')) {
-          this.cacheSession.active.created.by = proposal.created.by;
-        }
-      }
-      if (this.validateProperty(proposal, 'modified')) {
-        if (this.validateProperty(proposal.modified, 'at')) {
-          this.cacheSession.active.modified.at = proposal.modified.at;
-        }
-        if (this.validateProperty(proposal.modified, 'by')) {
-          this.cacheSession.active.modified.by = proposal.modified.by;
-        }
-      }
-      this.setStorage();
+    if (this.validateProperty(proposal, 'id')) {
+      this.cacheSession.active.id = proposal.id;
     }
+    if (this.validateProperty(proposal, 'name')) {
+      this.cacheSession.active.name = proposal.name;
+    }
+    if (this.validateProperty(proposal, 'active')) {
+      this.cacheSession.active.active = proposal.active;
+    }
+    if (this.validateProperty(proposal, 'version')) {
+      this.cacheSession.active.version = proposal.version;
+    }
+    if (this.validateProperty(proposal, 'accessible_locations')) {
+      this.cacheSession.active.accessible_locations = proposal.accessible_locations;
+    }
+    if (this.validateProperty(proposal, 'default_location')) {
+      this.cacheSession.active.default_location = proposal.default_location;
+    }
+    if (this.validateProperty(proposal, 'created')) {
+      if (this.validateProperty(proposal.created, 'at')) {
+        this.cacheSession.active.created.at = proposal.created.at;
+      }
+      if (this.validateProperty(proposal.created, 'by')) {
+        this.cacheSession.active.created.by = proposal.created.by;
+      }
+    }
+    if (this.validateProperty(proposal, 'modified')) {
+      if (this.validateProperty(proposal.modified, 'at')) {
+        this.cacheSession.active.modified.at = proposal.modified.at;
+      }
+      if (this.validateProperty(proposal.modified, 'by')) {
+        this.cacheSession.active.modified.by = proposal.modified.by;
+      }
+    }
+    this.setStorage();
   }
 
   /**
@@ -420,14 +416,14 @@ class ALSession {
   /**
    * Get Accessible Locations for the active account
    */
-  getAccessibleLocations(): string [] {
+  getAccessibleLocations(): string[] {
     return this.cacheSession.active.accessible_locations;
   }
 
   /**
    * Get Accessible Locations for the users account
    */
-  getCurrentAccessibleLocations(): string [] {
+  getCurrentAccessibleLocations(): string[] {
     return this.cacheSession.authentication.account.accessible_locations;
   }
 }
