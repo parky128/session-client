@@ -1,6 +1,6 @@
 {
-  "name": "@alertlogic/session",
-  "version": "0.7.0",
+  "name": "@al/session",
+  "version": "0.8.0",
   "license": "MIT",
   "description": "A client for maintaining Alert Logic session data",
   "author": {

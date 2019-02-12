@@ -1,4 +1,4 @@
-  @alertlogic/session
+  @al/session
 =========
 
 A service for maintaining [Alert Logic](https://www.alertlogic.com/) session data.
@@ -11,12 +11,12 @@ Until the release of version 1.0.0 all current minor version increments may be b
 
 ## Installation
 
-      npm install @alertlogic/session --save
+      npm install @al/session --save
 
 ## Usage
 
-      var ALSession = require('@alertlogic/session').ALSession; //commonjs - e.g. node
-      import { ALSession } from '@alertlogic/session'; //ES2015 - e.g. Angular, TS projects
+      var ALSession = require('@al/session').ALSession; //commonjs - e.g. node
+      import { ALSession } from '@al/session'; //ES2015 - e.g. Angular, TS projects
 
   Sets isSessionActive to true if authentication.token_expiration is in the future.
 
