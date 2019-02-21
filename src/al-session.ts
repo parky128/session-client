@@ -49,14 +49,15 @@ class ALSession {
     /**
     * Initialise whatever may be persisted
     */
-    const persistedSession = this.getStorage();
-    if (this.validateProperty(persistedSession, 'authentication')) {
-      this.setAuthentication(persistedSession.authentication);
-    }
-    if (this.validateProperty(persistedSession, 'active')) {
-      this.setActive(persistedSession.active);
-    }
-    this.activateSession();
+    // const persistedSession = this.getStorage();
+    // if (this.validateProperty(persistedSession, 'authentication')) {
+    //   this.setAuthentication(persistedSession.authentication);
+    // }
+    // if (this.validateProperty(persistedSession, 'active')) {
+    //   this.setActive(persistedSession.active);
+    // }
+    // this.activateSession();
+    this.synchroniseSession();
   }
 
   /**
@@ -160,6 +161,20 @@ class ALSession {
       }
     }
     return false;
+  }
+
+  /**
+   * Check for existing session in storage and synchronise with our cache session object if found
+   */
+  synchroniseSession() {
+    const persistedSession = this.getStorage();
+    if (this.validateProperty(persistedSession, 'authentication')) {
+      this.setAuthentication(persistedSession.authentication);
+    }
+    if (this.validateProperty(persistedSession, 'active')) {
+      this.setActive(persistedSession.active);
+    }
+    this.activateSession();
   }
 
   /**
