@@ -41,7 +41,7 @@ export interface AIMSAccount {
 
 interface AIMSSession {
   authentication: AIMSAuthentication;
-  active: AIMSAccount;
+  acting: AIMSAccount;
 }
 
 class ALSession {
@@ -53,8 +53,8 @@ class ALSession {
     if (this.validateProperty(persistedSession, 'authentication')) {
       this.setAuthentication(persistedSession.authentication);
     }
-    if (this.validateProperty(persistedSession, 'active')) {
-      this.setActive(persistedSession.active);
+    if (this.validateProperty(persistedSession, 'acting')) {
+      this.setActingAccount(persistedSession.acting);
     }
     this.activateSession();
   }
@@ -103,7 +103,7 @@ class ALSession {
       token: '',
       token_expiration: 0,
     },
-    active: {
+    acting: {
       id: '0',
       name: 'Unknown Company',
       active: false,
@@ -135,7 +135,7 @@ class ALSession {
   private setStorage() {
     if (this.sessionIsActive) {
       if (this.validateProperty(this.cacheSession, 'authentication')) {
-        if (this.validateProperty(this.cacheSession, 'active')) {
+        if (this.validateProperty(this.cacheSession, 'acting')) {
           localStorageFallback.setItem('al_session', JSON.stringify(this.cacheSession));
         }
       }
@@ -250,43 +250,43 @@ class ALSession {
   }
 
   /**
-   * Update 'active'
+   * Set the acting account for the current user
    * Modelled on /aims/v1/:account_id/account
    * To be called by AIMS Service
    */
-  setActive(proposal: AIMSAccount) {
-    if (this.validateProperty(proposal, 'id')) {
-      this.cacheSession.active.id = proposal.id;
+  setActingAccount(account: AIMSAccount) {
+    if (this.validateProperty(account, 'id')) {
+      this.cacheSession.acting.id = account.id;
     }
-    if (this.validateProperty(proposal, 'name')) {
-      this.cacheSession.active.name = proposal.name;
+    if (this.validateProperty(account, 'name')) {
+      this.cacheSession.acting.name = account.name;
     }
-    if (this.validateProperty(proposal, 'active')) {
-      this.cacheSession.active.active = proposal.active;
+    if (this.validateProperty(account, 'active')) {
+      this.cacheSession.acting.active = account.active;
     }
-    if (this.validateProperty(proposal, 'version')) {
-      this.cacheSession.active.version = proposal.version;
+    if (this.validateProperty(account, 'version')) {
+      this.cacheSession.acting.version = account.version;
     }
-    if (this.validateProperty(proposal, 'accessible_locations')) {
-      this.cacheSession.active.accessible_locations = proposal.accessible_locations;
+    if (this.validateProperty(account, 'accessible_locations')) {
+      this.cacheSession.acting.accessible_locations = account.accessible_locations;
     }
-    if (this.validateProperty(proposal, 'default_location')) {
-      this.cacheSession.active.default_location = proposal.default_location;
+    if (this.validateProperty(account, 'default_location')) {
+      this.cacheSession.acting.default_location = account.default_location;
     }
-    if (this.validateProperty(proposal, 'created')) {
-      if (this.validateProperty(proposal.created, 'at')) {
-        this.cacheSession.active.created.at = proposal.created.at;
+    if (this.validateProperty(account, 'created')) {
+      if (this.validateProperty(account.created, 'at')) {
+        this.cacheSession.acting.created.at = account.created.at;
       }
-      if (this.validateProperty(proposal.created, 'by')) {
-        this.cacheSession.active.created.by = proposal.created.by;
+      if (this.validateProperty(account.created, 'by')) {
+        this.cacheSession.acting.created.by = account.created.by;
       }
     }
-    if (this.validateProperty(proposal, 'modified')) {
-      if (this.validateProperty(proposal.modified, 'at')) {
-        this.cacheSession.active.modified.at = proposal.modified.at;
+    if (this.validateProperty(account, 'modified')) {
+      if (this.validateProperty(account.modified, 'at')) {
+        this.cacheSession.acting.modified.at = account.modified.at;
       }
-      if (this.validateProperty(proposal.modified, 'by')) {
-        this.cacheSession.active.modified.by = proposal.modified.by;
+      if (this.validateProperty(account.modified, 'by')) {
+        this.cacheSession.acting.modified.by = account.modified.by;
       }
     }
     this.setStorage();
@@ -344,10 +344,10 @@ class ALSession {
   }
 
   /**
-   * Get Active Account
+   * Get the acting account
    */
-  getActive(): AIMSAccount {
-    return this.cacheSession.active;
+  getActingAccount(): AIMSAccount {
+    return this.cacheSession.acting;
   }
 
   /**
@@ -395,35 +395,35 @@ class ALSession {
   /**
    * Get acting Account ID - (account the user is currently working in)
    */
-  getActiveAccountID(): string {
-    return this.cacheSession.active.id;
+  getActingAccountID(): string {
+    return this.cacheSession.acting.id;
   }
 
   /**
    * Get acting Account Name - (account the user is currently working in)
    */
-  getActiveAccountName(): string {
-    return this.cacheSession.active.name;
+  getActingAccountName(): string {
+    return this.cacheSession.acting.name;
   }
 
   /**
-   * Get Default Location for the active account
+   * Get Default Location for the acting account
    */
-  getDefaultLocation() {
-    return this.cacheSession.active.default_location;
+  getActingAccountDefaultLocation() {
+    return this.cacheSession.acting.default_location;
   }
 
   /**
-   * Get Accessible Locations for the active account
+   * Get Accessible Locations for the acting account
    */
-  getAccessibleLocations(): string[] {
-    return this.cacheSession.active.accessible_locations;
+  getActingAccountAccessibleLocations(): string[] {
+    return this.cacheSession.acting.accessible_locations;
   }
 
   /**
    * Get Accessible Locations for the users account
    */
-  getCurrentAccessibleLocations(): string[] {
+  getUserAccessibleLocations(): string[] {
     return this.cacheSession.authentication.account.accessible_locations;
   }
 }

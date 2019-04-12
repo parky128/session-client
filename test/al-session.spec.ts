@@ -1,7 +1,7 @@
 
 import { ALSession, AIMSAuthentication, AIMSAccount } from '../src/index';
 import localStorageFallback from 'local-storage-fallback';
-import { defaultSession, defaultActive } from './mocks/default-session.mock';
+import { defaultSession, defaultActing } from './mocks/default-session.mock';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 
@@ -88,7 +88,7 @@ describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
   });
   describe('On retrieving the session user accessible locations', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getCurrentAccessibleLocations()).to.deep.equal(authentication.account.accessible_locations);
+      expect(ALSession.getUserAccessibleLocations()).to.deep.equal(authentication.account.accessible_locations);
     });
   });
   describe('On setting the session token details', () => {
@@ -102,10 +102,10 @@ describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
   });
 });
 
-describe('ALSession - Active AIMSAccount value persistance Test Suite:', () => {
-  let activeAccount: AIMSAccount;
+describe('ALSession - Acting AIMSAccount value persistance Test Suite:', () => {
+  let actingAccount: AIMSAccount;
   beforeEach(() => {
-    activeAccount = {
+    actingAccount = {
       id: '5',
       name: 'ACME Corp',
       active: false,
@@ -121,36 +121,36 @@ describe('ALSession - Active AIMSAccount value persistance Test Suite:', () => {
         by: 'al-ui-team',
       },
     };
-    ALSession.setActive(activeAccount);
+    ALSession.setActingAccount(actingAccount);
   });
-  describe('After setting the active account value of the session object', () => {
+  describe('After setting the acting account value of the session object', () => {
     it('should persist this to local storage"', () => {
-      expect(JSON.parse(localStorageFallback.getItem('al_session')).active).to.deep.equal(activeAccount);
+      expect(JSON.parse(localStorageFallback.getItem('al_session')).acting).to.deep.equal(actingAccount);
     });
   });
-  describe('On retrieving the session active account ID value', () => {
+  describe('On retrieving the session acting account ID value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getActiveAccountID()).to.equal(activeAccount.id);
+      expect(ALSession.getActingAccountID()).to.equal(actingAccount.id);
     });
   });
-  describe('On retrieving the session active account name value', () => {
+  describe('On retrieving the session acting account name value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getActiveAccountName()).to.equal(activeAccount.name);
+      expect(ALSession.getActingAccountName()).to.equal(actingAccount.name);
     });
   });
-  describe('On retrieving the session session active account value', () => {
+  describe('On retrieving the session session acting account value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getActive()).to.deep.equal(activeAccount);
+      expect(ALSession.getActingAccount()).to.deep.equal(actingAccount);
     });
   });
-  describe('On retrieving the session accessible locations', () => {
+  describe('On retrieving the acting account accessible locations', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getAccessibleLocations()).to.equal(activeAccount.accessible_locations);
+      expect(ALSession.getActingAccountAccessibleLocations()).to.equal(actingAccount.accessible_locations);
     });
   });
-  describe('On retrieving the session default location', () => {
+  describe('On retrieving the acting account default location', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getDefaultLocation()).to.equal(activeAccount.default_location);
+      expect(ALSession.getActingAccountDefaultLocation()).to.equal(actingAccount.default_location);
     });
   });
 });
@@ -190,15 +190,15 @@ describe('When attempting to setAuthentication with', () => {
 
 describe('When attempting to set with', () => {
   describe('no account property provided', () => {
-    it('should fallback to setting default active account values', () => {
-      ALSession.setActive({});
-      expect(ALSession.getActive()).to.deep.equal(defaultActive);
+    it('should fallback to setting default acting account values', () => {
+      ALSession.setActingAccount({});
+      expect(ALSession.getActingAccount()).to.deep.equal(defaultActing);
     });
   });
   describe('an account property provided that has empty created and modified properties', () => {
-    it('should fallback to setting default active account values', () => {
-      ALSession.setActive({ created: {}, modified: {} });
-      expect(ALSession.getActive()).to.deep.equal(defaultActive);
+    it('should fallback to setting default acting account values', () => {
+      ALSession.setActingAccount({ created: {}, modified: {} });
+      expect(ALSession.getActingAccount()).to.deep.equal(defaultActing);
     });
   });
 });
