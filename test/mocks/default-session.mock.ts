@@ -34,7 +34,7 @@ export const defaultSession = {
     token: '',
     token_expiration: 0,
   },
-  active: {
+  acting: {
     id: '0',
     name: 'Unknown Company',
     active: false,
@@ -52,7 +52,7 @@ export const defaultSession = {
   },
 };
 
-export const defaultActive = {
+export const defaultActing = {
   id: '0',
   name: 'Unknown Company',
   active: false,

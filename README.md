@@ -52,27 +52,27 @@ Sets the authenticated user details
 
       ALSession.setUserAuthentication(proposal);
 
-Takes a proposal parameter in the format of an authentication response object defintion from AIMS - [response format](https://console.account.alertlogic.com/users/api/aims/#api-AIMS_Authentication_and_Authorization_Resources-Authenticate)
+Takes a proposal parameter in the format of an [AIMS authentication resource](https://console.account.alertlogic.com/users/api/aims/#api-AIMS_Authentication_and_Authorization_Resources-Authenticate)
 
 **getUserAuthentication**
 
-Returns currently logged in user's AIMS authentication object.
+Returns the currently logged in user's AIMS authentication resource.
   
       ALSession.getUserAuthentication();
 
-**setActive**
+**setActingAccount**
 
-Sets the active account for the current authenticated user
+Sets the acting account for the current authenticated user
 
-      ALSession.setActive(proposal)
+      ALSession.setActingAccount(account)
 
-Takes a proposal parameter in the format of an authentication account object defintion from AIMS - [response format](https://console.account.alertlogic.com/users/api/aims/#api-AIMS_Authentication_and_Authorization_Resources-Authenticate)
+Takes an account parameter in the format of an [AIMS account resource](https://console.account.alertlogic.com/users/api/aims/#api-AIMS_Authentication_and_Authorization_Resources-Authenticate)
 
-**getActive**
+**getActingAccount**
 
-Returns an AIMS authentication account details object for the current active account.
+Returns an the current acting account (modelled on an AIMS account).
 
-      ALSession.getActive();
+      ALSession.getActingAccount();
 
 **getToken**
 
@@ -96,17 +96,17 @@ Returns the current AIMS authentication token expiry.
 
 **getUserAccountID**
 
-**getCurrentAccessibleLocations**
+**getUserAccessibleLocations**
 
-## Convenience methods for active account
+## Convenience methods for acting account
 
-**getActiveAccountID**
+**getActingAccountID**
 
-**getActiveAccountName**
+**getActingAccountName**
 
-**getDefaultLocation**
+**getActingAccountDefaultLocation**
 
-**getAccessibleLocations**
+**getActingAccountAccessibleLocations**
 
 ## Interactive
 
