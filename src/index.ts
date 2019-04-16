@@ -1,1 +1,6 @@
-export { alSession as ALSession, AIMSAccount, AIMSAuthentication } from './al-session';
+export {
+    ALSessionInstance,
+    ALSession,
+    AIMSAccount,
+    AIMSAuthentication
+} from './al-session';

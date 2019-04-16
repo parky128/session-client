@@ -44,7 +44,12 @@ interface AIMSSession {
   acting: AIMSAccount;
 }
 
-class ALSession {
+/**
+ * ALSessionInstance maintains session data for a specific session.
+ */
+
+export class ALSessionInstance
+{
   constructor() {
     /**
     * Initialise whatever may be persisted
@@ -247,6 +252,7 @@ class ALSession {
       this.activateSession();
     }
     this.setStorage();
+    console.log("Cached session: ", this.cacheSession );
   }
 
   /**
@@ -428,4 +434,4 @@ class ALSession {
   }
 }
 
-export const alSession = new ALSession();
+export const ALSession = new ALSessionInstance();
