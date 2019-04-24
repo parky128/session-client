@@ -1,47 +1,49 @@
 
-import { ALSession, AIMSAuthentication, AIMSAccount } from '../src/index';
+import { ALSession, AIMSAuthentication, AIMSSession, AIMSAccount } from '../src/index';
 import localStorageFallback from 'local-storage-fallback';
 import { defaultSession, defaultActing } from './mocks/default-session.mock';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 
 describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
-  let authentication: AIMSAuthentication;
+  let authentication: AIMSSession;
   beforeEach(() => {
     authentication = {
-      user: {
-        id: '12345-ABCDE',
-        name: 'Alert Logic',
-        email: 'alertlogic@unknown.com',
-        active: true,
-        locked: false,
-        version: 1,
-        created: {
-          at: 0,
-          by: 'ui-team',
-        },
-        modified: {
-          at: 0,
-          by: 'ui-team',
-        },
-      },
-      account: {
-        id: '2',
-        name: 'Alert Logic',
-        active: false,
-        accessible_locations: ['location-a', 'location-b'],
-        default_location: 'location-a',
-        created: {
-          at: 0,
-          by: 'ui-team',
-        },
-        modified: {
-          at: 0,
-          by: 'ui-team',
-        },
-      },
-      token: 'abig-fake.JUICY-token',
-      token_expiration: + new Date() + 86400,
+      authentication: {
+          user: {
+            id: '12345-ABCDE',
+            name: 'Alert Logic',
+            email: 'alertlogic@unknown.com',
+            active: true,
+            locked: false,
+            version: 1,
+            created: {
+              at: 0,
+              by: 'ui-team',
+            },
+            modified: {
+              at: 0,
+              by: 'ui-team',
+            },
+          },
+          account: {
+            id: '2',
+            name: 'Alert Logic',
+            active: false,
+            accessible_locations: ['location-a', 'location-b'],
+            default_location: 'location-a',
+            created: {
+              at: 0,
+              by: 'ui-team',
+            },
+            modified: {
+              at: 0,
+              by: 'ui-team',
+            },
+          },
+          token: 'abig-fake.JUICY-token',
+          token_expiration: + new Date() + 86400,
+      }
     };
     ALSession.setAuthentication(authentication);
   });

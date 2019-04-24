@@ -1,6 +1,6 @@
+export * from './events';
 export {
-    ALSessionInstance,
-    ALSession,
-    AIMSAccount,
-    AIMSAuthentication
+    AlSessionInstance,
+    AlDefaultSession,
+    AlDefaultSession as ALSession       /* deprecated */
 } from './al-session';

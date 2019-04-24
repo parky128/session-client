@@ -3,76 +3,22 @@
  */
 
 import localStorageFallback from 'local-storage-fallback';
-
-interface UserTimeStamp {
-  at?: number;
-  by?: string;
-}
-
-export interface AIMSAuthentication {
-  user?: AIMSUser;
-  account?: AIMSAccount;
-  token?: string;
-  token_expiration?: number;
-}
-
-interface AIMSUser {
-  id?: string;
-  name?: string;
-  email?: string;
-  active?: boolean;
-  locked?: boolean;
-  version?: number;
-  created?: UserTimeStamp;
-  modified?: UserTimeStamp;
-}
-
-export interface AIMSAccount {
-  id?: string;
-  name?: string;
-  active?: boolean;
-  version?: number;
-  accessible_locations?: string[];
-  default_location?: string;
-  mfa_required?: boolean;
-  created?: UserTimeStamp;
-  modified?: UserTimeStamp;
-}
-
-interface AIMSSession {
-  authentication: AIMSAuthentication;
-  acting: AIMSAccount;
-}
+import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent } from './events';
+import {
+  AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
+  AlApiClient, AlDefaultClient,
+  AlSchemaValidator,
+  AIMSJsonSchematics,
+  AlResponseValidationError,
+  AlTriggerStream,
+  AlClientBeforeRequestEvent
+} from '@al/client';
 
 /**
- * ALSessionInstance maintains session data for a specific session.
+ * Create our default session object
  */
-
-export class ALSessionInstance
-{
-  constructor() {
-    /**
-    * Initialise whatever may be persisted
-    */
-    const persistedSession = this.getStorage();
-    if (this.validateProperty(persistedSession, 'authentication')) {
-      this.setAuthentication(persistedSession.authentication);
-    }
-    if (this.validateProperty(persistedSession, 'acting')) {
-      this.setActingAccount(persistedSession.acting);
-    }
-    this.activateSession();
-  }
-
-  /**
-   * Deal with an Active Session
-   */
-  sessionIsActive = false;
-
-  /**
-   * Create our default session object
-   */
-  defaultSession: AIMSSession = {
+/* tslint:disable:variable-name */
+const AlDefaultSessionData: AIMSSessionDescriptor = {
     authentication: {
       user: {
         id: '0',
@@ -124,135 +70,88 @@ export class ALSessionInstance
         by: '',
       },
     },
-  };
-  cacheSession: AIMSSession = JSON.parse(JSON.stringify(this.defaultSession));
+};
 
-  /**
-   * Get the current timestamp
-   */
-  getTimestamp(): number {
-    return new Date().getTime();
-  }
+/**
+ * AlSessionInstance maintains session data for a specific session.
+ */
+export class AlSessionInstance
+{
+  public    client:AlApiClient;
+  public    sessionIsActive = false;
+  public    sessionData: AIMSSessionDescriptor = JSON.parse(JSON.stringify(AlDefaultSessionData));
+  public    notifyStream:AlTriggerStream = new AlTriggerStream();
 
-  /**
-   * Persist our session
-   */
-  private setStorage() {
-    if (this.sessionIsActive) {
-      if (this.validateProperty(this.cacheSession, 'authentication')) {
-        if (this.validateProperty(this.cacheSession, 'acting')) {
-          localStorageFallback.setItem('al_session', JSON.stringify(this.cacheSession));
+  constructor( client:AlApiClient = null ) {
+    this.client = client || AlDefaultClient;
+    this.notifyStream.siphon( this.client.events );
+    this.notifyStream.attach( AlClientBeforeRequestEvent, ( event:AlClientBeforeRequestEvent ) => {
+        if ( this.sessionIsActive ) {
+            event.request.headers = event.request.headers || {};
+            event.request.headers['X-AIMS-Auth-Token'] = this.getToken();
         }
-      }
+    } );
+    /**
+    * Initialise whatever may be persisted
+    */
+    const persistedSession = this.getStorage();
+    if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) ) {
+      this.setAuthentication(persistedSession);
     }
   }
 
-  /**
-   * Fetch persisted session
-   */
-  private getStorage() {
-    return JSON.parse(localStorageFallback.getItem('al_session'));
+  public async authenticate( username:string, passphrase:string, mfaCode?:string ):Promise<boolean> {
+    return new Promise<boolean>( ( resolve, reject ) => {
+      this.client.authenticate( username, passphrase, mfaCode )
+        .then(  session => {
+                  this.setAuthentication( session );
+                  resolve( true );
+                },
+                error => reject( error ) );
+    } );
   }
 
-  /**
-   * Validate that a property exists
-   */
-  private validateProperty(obj, key) {
-    if (obj) {
-      const hasProperty = Object.prototype.hasOwnProperty.call(obj, key);
-      if (hasProperty) {
-        return true;
-      }
-    }
-    return false;
+  public authenticateWithSessionToken( sessionToken:string, mfaCode:string ):Promise<boolean> {
+    return new Promise<boolean>( ( resolve, reject ) => {
+      this.client.authenticateWithMFASessionToken( sessionToken, mfaCode )
+        .then(  session => {
+                  this.setAuthentication( session );
+                  resolve( true );
+                },
+                error => reject( error ) );
+    } );
   }
 
   /**
    * Update 'authentication'
-   * Modelled on /aims/v1/authenticate
+   * Modeled on /aims/v1/authenticate
    * To be called by AIMS Service
    */
-  setAuthentication(proposal: AIMSAuthentication) {
-    if (this.validateProperty(proposal, 'user')) {
-      if (this.validateProperty(proposal.user, 'id')) {
-        this.cacheSession.authentication.user.id = proposal.user.id;
-      }
-      if (this.validateProperty(proposal.user, 'name')) {
-        this.cacheSession.authentication.user.name = proposal.user.name;
-      }
-      if (this.validateProperty(proposal.user, 'email')) {
-        this.cacheSession.authentication.user.email = proposal.user.email;
-      }
-      if (this.validateProperty(proposal.user, 'active')) {
-        this.cacheSession.authentication.user.active = proposal.user.active;
-      }
-      if (this.validateProperty(proposal.user, 'locked')) {
-        this.cacheSession.authentication.user.locked = proposal.user.locked;
-      }
-      if (this.validateProperty(proposal.user, 'version')) {
-        this.cacheSession.authentication.user.version = proposal.user.version;
-      }
-      if (this.validateProperty(proposal.user, 'created')) {
-        if (this.validateProperty(proposal.user.created, 'at')) {
-          this.cacheSession.authentication.user.created.at = proposal.user.created.at;
-        }
-        if (this.validateProperty(proposal.user.created, 'by')) {
-          this.cacheSession.authentication.user.created.by = proposal.user.created.by;
-        }
-      }
-      if (this.validateProperty(proposal.user, 'modified')) {
-        if (this.validateProperty(proposal.user.modified, 'at')) {
-          this.cacheSession.authentication.user.modified.at = proposal.user.modified.at;
-        }
-        if (this.validateProperty(proposal.user.modified, 'by')) {
-          this.cacheSession.authentication.user.modified.by = proposal.user.modified.by;
-        }
-      }
+  setAuthentication(proposal: AIMSSessionDescriptor) {
+    let validator = new AlSchemaValidator<AIMSSessionDescriptor>();
+    try {
+      proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
+    } catch( e ) {
+      console.error("Failed to set authentication with malformed data: ", proposal );
+      throw e;
     }
-    if (this.validateProperty(proposal, 'account')) {
-      if (this.validateProperty(proposal.account, 'id')) {
-        this.cacheSession.authentication.account.id = proposal.account.id;
-      }
-      if (this.validateProperty(proposal.account, 'name')) {
-        this.cacheSession.authentication.account.name = proposal.account.name;
-      }
-      if (this.validateProperty(proposal.account, 'active')) {
-        this.cacheSession.authentication.account.active = proposal.account.active;
-      }
-      if (this.validateProperty(proposal.account, 'accessible_locations')) {
-        /* eslint-disable */
-        this.cacheSession.authentication.account.accessible_locations = proposal.account.accessible_locations;
-        /* eslint-enable */
-      }
-      if (this.validateProperty(proposal.account, 'default_location')) {
-        /* eslint-disable */
-        this.cacheSession.authentication.account.default_location = proposal.account.default_location;
-        /* eslint-enable */
-      }
-      if (this.validateProperty(proposal.account, 'created')) {
-        if (this.validateProperty(proposal.account.created, 'at')) {
-          this.cacheSession.authentication.account.created.at = proposal.account.created.at;
-        }
-        if (this.validateProperty(proposal.account.created, 'by')) {
-          this.cacheSession.authentication.account.created.by = proposal.account.created.by;
-        }
-      }
-      if (this.validateProperty(proposal.account, 'modified')) {
-        if (this.validateProperty(proposal.account.modified, 'at')) {
-          this.cacheSession.authentication.account.modified.at = proposal.account.modified.at;
-        }
-        if (this.validateProperty(proposal.account.modified, 'by')) {
-          this.cacheSession.authentication.account.modified.by = proposal.account.modified.by;
-        }
-      }
+
+    if ( proposal.authentication.token_expiration <= this.getCurrentTimestamp()) {
+      throw new AlResponseValidationError( "AIMS authentication response contains unexpected expiration timestamp in the past" );
     }
-    if ((proposal.token_expiration * 1000) > this.getTimestamp()) {
-      this.cacheSession.authentication.token = proposal.token;
-      this.cacheSession.authentication.token_expiration = proposal.token_expiration;
-      this.activateSession();
+
+    // Now that the content of the authentication session descriptor has been validated, let's make it effective
+    Object.assign( this.sessionData.authentication.user, proposal.authentication.user );
+    Object.assign( this.sessionData.authentication.account, proposal.authentication.account );
+    if ( proposal.acting ) {
+        Object.assign( this.sessionData.acting, proposal.acting );
+    } else {
+        Object.assign( this.sessionData.acting, proposal.authentication.account );
     }
+    this.sessionData.authentication.token = proposal.authentication.token;
+    this.sessionData.authentication.token_expiration = proposal.authentication.token_expiration;
+    this.activateSession();
     this.setStorage();
-    console.log("Cached session: ", this.cacheSession );
   }
 
   /**
@@ -261,40 +160,6 @@ export class ALSessionInstance
    * To be called by AIMS Service
    */
   setActingAccount(account: AIMSAccount) {
-    if (this.validateProperty(account, 'id')) {
-      this.cacheSession.acting.id = account.id;
-    }
-    if (this.validateProperty(account, 'name')) {
-      this.cacheSession.acting.name = account.name;
-    }
-    if (this.validateProperty(account, 'active')) {
-      this.cacheSession.acting.active = account.active;
-    }
-    if (this.validateProperty(account, 'version')) {
-      this.cacheSession.acting.version = account.version;
-    }
-    if (this.validateProperty(account, 'accessible_locations')) {
-      this.cacheSession.acting.accessible_locations = account.accessible_locations;
-    }
-    if (this.validateProperty(account, 'default_location')) {
-      this.cacheSession.acting.default_location = account.default_location;
-    }
-    if (this.validateProperty(account, 'created')) {
-      if (this.validateProperty(account.created, 'at')) {
-        this.cacheSession.acting.created.at = account.created.at;
-      }
-      if (this.validateProperty(account.created, 'by')) {
-        this.cacheSession.acting.created.by = account.created.by;
-      }
-    }
-    if (this.validateProperty(account, 'modified')) {
-      if (this.validateProperty(account.modified, 'at')) {
-        this.cacheSession.acting.modified.at = account.modified.at;
-      }
-      if (this.validateProperty(account.modified, 'by')) {
-        this.cacheSession.acting.modified.by = account.modified.by;
-      }
-    }
     this.setStorage();
   }
 
@@ -304,16 +169,21 @@ export class ALSessionInstance
    * To be called by AIMS Service
    */
   setTokenInfo(token: string, tokenExpiration: number) {
-    this.cacheSession.authentication.token = token;
-    this.cacheSession.authentication.token_expiration = tokenExpiration;
+    this.sessionData.authentication.token = token;
+    this.sessionData.authentication.token_expiration = tokenExpiration;
   }
 
   /**
    * Activate Session
    */
   activateSession(): boolean {
-    if ((this.cacheSession.authentication.token_expiration * 1000) > this.getTimestamp()) {
+    const wasActive = this.sessionIsActive;
+    if ( this.sessionData.authentication.token_expiration > this.getCurrentTimestamp()) {
       this.sessionIsActive = true;
+    }
+    if ( this.sessionIsActive && ! wasActive ) {
+        this.notifyStream.trigger( new AlSessionStartedEvent( this.sessionData.authentication.user, this.sessionData.authentication.account, this ) );
+        this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
     }
     return this.isActive();
   }
@@ -322,9 +192,10 @@ export class ALSessionInstance
    * Deactivate Session
    */
   deactivateSession(): boolean {
-    this.cacheSession = JSON.parse(JSON.stringify(this.defaultSession));
+    this.sessionData = JSON.parse(JSON.stringify(AlDefaultSessionData));
     this.sessionIsActive = false;
     localStorageFallback.removeItem('al_session');
+    this.notifyStream.trigger( new AlSessionEndedEvent( this ) );
     return this.isActive();
   }
 
@@ -338,100 +209,136 @@ export class ALSessionInstance
   /**
    * Get Session
    */
-  getSession(): AIMSSession {
-    return this.cacheSession;
+  getSession(): AIMSSessionDescriptor {
+    return this.sessionData;
   }
 
   /**
    * Get Authentication
    */
   getAuthentication(): AIMSAuthentication {
-    return this.cacheSession.authentication;
+    return this.sessionData.authentication;
+  }
+
+  /**
+   * Get the ID of the acting account
+   */
+  getActingAccountId(): string {
+      return this.isActive() ? this.sessionData.acting.id : null;
   }
 
   /**
    * Get the acting account
    */
   getActingAccount(): AIMSAccount {
-    return this.cacheSession.acting;
+    return this.sessionData.acting;
   }
 
   /**
    * Get Token
    */
   getToken(): string {
-    return this.cacheSession.authentication.token;
+    return this.sessionData.authentication.token;
   }
 
   /**
    * Get Token Expiry
    */
   getTokenExpiry(): number {
-    return this.cacheSession.authentication.token_expiration;
+    return this.sessionData.authentication.token_expiration;
   }
 
   /**
    * Get User ID
    */
   getUserID(): string {
-    return this.cacheSession.authentication.user.id;
+    return this.sessionData.authentication.user.id;
   }
 
   /**
    * Get User Name
    */
   getUserName(): string {
-    return this.cacheSession.authentication.user.name;
+    return this.sessionData.authentication.user.name;
   }
 
   /**
    * Get User Email
    */
   getUserEmail(): string {
-    return this.cacheSession.authentication.user.email;
+    return this.sessionData.authentication.user.email;
   }
 
   /**
    * Get Account ID - For which the User belongs to
    */
   getUserAccountID(): string {
-    return this.cacheSession.authentication.account.id;
+    return this.sessionData.authentication.account.id;
   }
 
   /**
    * Get acting Account ID - (account the user is currently working in)
    */
   getActingAccountID(): string {
-    return this.cacheSession.acting.id;
+    return this.sessionData.acting.id;
   }
 
   /**
    * Get acting Account Name - (account the user is currently working in)
    */
   getActingAccountName(): string {
-    return this.cacheSession.acting.name;
+    return this.sessionData.acting.name;
   }
 
   /**
    * Get Default Location for the acting account
    */
   getActingAccountDefaultLocation() {
-    return this.cacheSession.acting.default_location;
+    return this.sessionData.acting.default_location;
   }
 
   /**
    * Get Accessible Locations for the acting account
    */
   getActingAccountAccessibleLocations(): string[] {
-    return this.cacheSession.acting.accessible_locations;
+    return this.sessionData.acting.accessible_locations;
   }
 
   /**
    * Get Accessible Locations for the users account
    */
   getUserAccessibleLocations(): string[] {
-    return this.cacheSession.authentication.account.accessible_locations;
+    return this.sessionData.authentication.account.accessible_locations;
+  }
+
+  /**
+   * Private Internal/Utility Methods
+   */
+
+  /**
+   * Get the current timestamp (seconds since the epoch)
+   */
+  getCurrentTimestamp(): number {
+    return new Date().getTime() / 1000;
+  }
+
+
+  /**
+   * Persist our session
+   */
+  private setStorage() {
+    if (this.sessionIsActive && this.sessionData && this.sessionData.hasOwnProperty( "authentication" ) ) {
+      localStorageFallback.setItem('al_session', JSON.stringify(this.sessionData));
+    }
+  }
+
+  /**
+   * Fetch persisted session
+   */
+  private getStorage() {
+    return JSON.parse(localStorageFallback.getItem('al_session'));
   }
 }
 
-export const ALSession = new ALSessionInstance();
+/*  tslint:disable:variable-name */
+export const AlDefaultSession = new AlSessionInstance();
