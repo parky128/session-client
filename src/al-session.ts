@@ -129,12 +129,12 @@ export class AlSessionInstance
    */
   setAuthentication(proposal: AIMSSessionDescriptor) {
     let validator = new AlSchemaValidator<AIMSSessionDescriptor>();
-    try {
-      proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
-    } catch( e ) {
-      console.error("Failed to set authentication with malformed data: ", proposal );
-      throw e;
-    }
+    // try {
+    //   proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
+    // } catch( e ) {
+    //   console.error("Failed to set authentication with malformed data: ", proposal );
+    //   throw e;
+    // }
 
     if ( proposal.authentication.token_expiration <= this.getCurrentTimestamp()) {
       throw new AlResponseValidationError( "AIMS authentication response contains unexpected expiration timestamp in the past" );

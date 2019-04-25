@@ -1,4 +1,5 @@
 const path = require('path');
+const PeerDepsExternalsPlugin = require('peer-deps-externals-webpack-plugin');
 
 module.exports = (env) => {
 
@@ -13,7 +14,10 @@ module.exports = (env) => {
       library: 'alSession',
       libraryTarget: 'umd',
       globalObject: 'this'
-    }
+    },
+    plugins: [
+      new PeerDepsExternalsPlugin()
+    ]
   };
 
 };

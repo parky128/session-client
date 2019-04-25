@@ -1,12 +1,13 @@
 
-import { ALSession, AIMSAuthentication, AIMSSession, AIMSAccount } from '../src/index';
+import { ALSession } from '../src/index';
+import { AIMSSessionDescriptor } from '@al/client';
 import localStorageFallback from 'local-storage-fallback';
 import { defaultSession, defaultActing } from './mocks/default-session.mock';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 
 describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
-  let authentication: AIMSSession;
+  let authentication: AIMSSessionDescriptor;
   beforeEach(() => {
     authentication = {
       authentication: {

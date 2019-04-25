@@ -24,6 +24,12 @@ module.exports = function (config) {
           "subdirectory": "report"
         },
         "text-summary": ""
+      },
+      compilerOptions: {
+        lib: [
+          "es2015",
+          "dom"
+        ]
       }
     },
 
