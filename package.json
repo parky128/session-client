@@ -59,8 +59,12 @@
     "webpack-cli": "^3.2.1"
   },
   "dependencies": {
+    "@al/haversack": "^1.0.0-beta.1",
     "local-storage-fallback": "^4.1.1",
     "qs": "^6.7.0"
+  },
+  "peerDependencies": {
+    "@al/client": "^1.0.0-beta.1"
   },
   "files": [
     "dist"

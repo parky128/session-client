@@ -7,6 +7,7 @@ export const defaultSession = {
       active: false,
       locked: true,
       version: 1,
+      linked_users: [],
       created: {
         at: 0,
         by: '',

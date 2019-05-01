@@ -1,4 +1,5 @@
-import { AlTriggeredEvent, AIMSUser, AIMSAccount } from '@al/client';
+import { AlTriggeredEvent } from '@al/haversack/triggers';
+import { AIMSUser, AIMSAccount } from '@al/client';
 import { AlSessionInstance } from '../al-session';
 
 /**

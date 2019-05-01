@@ -3,14 +3,14 @@
  */
 
 import localStorageFallback from 'local-storage-fallback';
+import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
+import { AlSchemaValidator } from '@al/haversack/schema-validator';
 import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent } from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
   AlApiClient, AlDefaultClient,
-  AlSchemaValidator,
   AIMSJsonSchematics,
   AlResponseValidationError,
-  AlTriggerStream,
   AlClientBeforeRequestEvent
 } from '@al/client';
 
