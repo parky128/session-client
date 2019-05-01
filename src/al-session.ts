@@ -129,12 +129,12 @@ export class AlSessionInstance
    */
   setAuthentication(proposal: AIMSSessionDescriptor) {
     let validator = new AlSchemaValidator<AIMSSessionDescriptor>();
-    // try {
-    //   proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
-    // } catch( e ) {
-    //   console.error("Failed to set authentication with malformed data: ", proposal );
-    //   throw e;
-    // }
+    try {
+      proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
+    } catch( e ) {
+      console.error("Failed to set authentication with malformed data: ", proposal );
+      throw e;
+    }
 
     if ( proposal.authentication.token_expiration <= this.getCurrentTimestamp()) {
       throw new AlResponseValidationError( "AIMS authentication response contains unexpected expiration timestamp in the past" );
@@ -160,7 +160,21 @@ export class AlSessionInstance
    * To be called by AIMS Service
    */
   setActingAccount(account: AIMSAccount) {
+    const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
+    this.sessionData.acting = account;
     this.setStorage();
+    if ( actingAccountChanged ) {
+      this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
+    }
+  }
+
+  /**
+   * Resolves the acting account
+   */
+  resolveActingAccount( accountId:string ):Promise<AIMSAccount> {
+      return new Promise<AIMSAccount>( ( resolve, reject ) => {
+          resolve( null );
+      } );
   }
 
   /**

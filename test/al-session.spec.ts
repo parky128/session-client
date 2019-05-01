@@ -1,15 +1,15 @@
 
 import { ALSession } from '../src/index';
-import { AIMSSessionDescriptor } from '@al/client';
+import { AIMSSessionDescriptor, AIMSAccount } from '@al/client';
 import localStorageFallback from 'local-storage-fallback';
 import { defaultSession, defaultActing } from './mocks/default-session.mock';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 
 describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
-  let authentication: AIMSSessionDescriptor;
+  let sessionDescriptor:AIMSSessionDescriptor;
   beforeEach(() => {
-    authentication = {
+    sessionDescriptor = {
       authentication: {
           user: {
             id: '12345-ABCDE',
@@ -46,52 +46,52 @@ describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
           token_expiration: + new Date() + 86400,
       }
     };
-    ALSession.setAuthentication(authentication);
+    ALSession.setAuthentication(sessionDescriptor);
   });
 
   describe('After setting the authentication value of the session object', () => {
     it('should persist this to local storage"', () => {
-      expect(JSON.parse(localStorageFallback.getItem('al_session')).authentication).to.deep.equal(authentication);
+      expect(JSON.parse(localStorageFallback.getItem('al_session')).authentication).to.deep.equal(sessionDescriptor);
     });
   });
   describe('On retrieving the session token value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getToken()).to.equal(authentication.token);
+      expect(ALSession.getToken()).to.equal(sessionDescriptor.authentication.token);
     });
   });
   describe('On retrieving the session token expiry value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getTokenExpiry()).to.equal(authentication.token_expiration);
+      expect(ALSession.getTokenExpiry()).to.equal(sessionDescriptor.authentication.token_expiration);
     });
   });
   describe('On retrieving the session user ID value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getUserID()).to.equal(authentication.user.id);
+      expect(ALSession.getUserID()).to.equal(sessionDescriptor.authentication.user.id);
     });
   });
   describe('On retrieving the session user name value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getUserName()).to.equal(authentication.user.name);
+      expect(ALSession.getUserName()).to.equal(sessionDescriptor.authentication.user.name);
     });
   });
   describe('On retrieving the session user email value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getUserEmail()).to.equal(authentication.user.email);
+      expect(ALSession.getUserEmail()).to.equal(sessionDescriptor.authentication.user.email);
     });
   });
   describe('On retrieving the session user account ID value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getUserAccountID()).to.equal(authentication.account.id);
+      expect(ALSession.getUserAccountID()).to.equal(sessionDescriptor.authentication.account.id);
     });
   });
   describe('On retrieving the session AIMS Authentication value', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getAuthentication()).to.deep.equal(authentication);
+      expect(ALSession.getAuthentication()).to.deep.equal(sessionDescriptor);
     });
   });
   describe('On retrieving the session user accessible locations', () => {
     it('should retrieve the persisted value', () => {
-      expect(ALSession.getUserAccessibleLocations()).to.deep.equal(authentication.account.accessible_locations);
+      expect(ALSession.getUserAccessibleLocations()).to.deep.equal(sessionDescriptor.authentication.account.accessible_locations);
     });
   });
   describe('On setting the session token details', () => {
@@ -167,41 +167,5 @@ describe('After deactivating the session', () => {
   });
   it('should set remove the local storage item', () => {
     expect(localStorageFallback.getItem('al_session')).to.be.null;
-  });
-});
-
-describe('When attempting to setAuthentication with', () => {
-  describe('no user and account property provided', () => {
-    it('should fallback to setting default values', () => {
-      ALSession.setAuthentication({});
-      expect(ALSession.getAuthentication()).to.deep.equal(defaultSession.authentication);
-    });
-  });
-  describe('an empty user and account property provided', () => {
-    it('should fallback to setting default values', () => {
-      ALSession.setAuthentication({ user: { }, account: {} });
-      expect(ALSession.getAuthentication()).to.deep.equal(defaultSession.authentication);
-    });
-  });
-  describe('user and account properties BOTH containing empty created and modified properties', () => {
-    it('should fallback to setting default values', () => {
-      ALSession.setAuthentication({ user: { created: {}, modified: {} }, account: { created: {}, modified: {} } });
-      expect(ALSession.getAuthentication()).to.deep.equal(defaultSession.authentication);
-    });
-  });
-});
-
-describe('When attempting to set with', () => {
-  describe('no account property provided', () => {
-    it('should fallback to setting default acting account values', () => {
-      ALSession.setActingAccount({});
-      expect(ALSession.getActingAccount()).to.deep.equal(defaultActing);
-    });
-  });
-  describe('an account property provided that has empty created and modified properties', () => {
-    it('should fallback to setting default acting account values', () => {
-      ALSession.setActingAccount({ created: {}, modified: {} });
-      expect(ALSession.getActingAccount()).to.deep.equal(defaultActing);
-    });
   });
 });
