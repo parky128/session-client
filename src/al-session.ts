@@ -80,7 +80,7 @@ export class AlSessionInstance
   public    client:AlApiClient;
   public    sessionIsActive = false;
   public    sessionData: AIMSSessionDescriptor = JSON.parse(JSON.stringify(AlDefaultSessionData));
-  public    notifyStream:AlTriggerStream = new AlTriggerStream();
+  public    notifyStream:AlTriggerStream = new AlTriggerStream( false );
 
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
