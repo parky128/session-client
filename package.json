@@ -59,16 +59,14 @@
     "webpack-node-externals": "^1.7.2"
   },
   "dependencies": {
-    "@al/haversack": "^1.0.0-beta.1",
-    "@al/aims": "^1.0.0-beta.1",
-    "@al/client": "^1.0.0-beta.1",
-    "@al/subscriptions": "^0.10.1",
+    "@al/aims": "^1.0.0-beta.4",
+    "@al/client": "^1.0.0-beta.4",
+    "@al/haversack": "^1.0.0-beta.4",
+    "@al/subscriptions": "^1.0.0-beta.4",
     "local-storage-fallback": "^4.1.1",
     "qs": "^6.7.0"
   },
-  "peerDependencies": {
-    "@al/client": "^1.0.0-beta.1"
-  },
+  "peerDependencies": {},
   "files": [
     "dist"
   ]
