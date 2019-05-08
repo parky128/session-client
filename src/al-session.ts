@@ -1,11 +1,18 @@
 /**
- * Module for maintaining Alert Logic session data
+ * An interface for establishing and persistenting an authenticated AIMS session.
+ *
+ * @author Barry Skidmore <bskidmore@alertlogic.com>
+ * @author Robert Parker <robert.parker@alertlogic.com>
+ * @author Kevin Nielsen <knielsen@alertlogic.com>
+ *
+ * @copyright 2019 Alert Logic, Inc.
  */
 
 import localStorageFallback from 'local-storage-fallback';
 import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
+import { AlBehaviorPromise } from '@al/haversack/promises';
 import { AlSchemaValidator } from '@al/haversack/schema-validator';
-import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent } from './events';
+import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent, AlActingAccountResolvedEvent } from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
   AlApiClient, AlDefaultClient,
@@ -13,6 +20,8 @@ import {
   AlResponseValidationError,
   AlClientBeforeRequestEvent
 } from '@al/client';
+import { AIMSClient } from '@al/aims';
+import { AlEntitlementCollection, SubscriptionsClient } from '@al/subscriptions';
 
 /**
  * Create our default session object
@@ -77,10 +86,24 @@ const AlDefaultSessionData: AIMSSessionDescriptor = {
  */
 export class AlSessionInstance
 {
-  public    client:AlApiClient;
-  public    sessionIsActive = false;
-  public    sessionData: AIMSSessionDescriptor = JSON.parse(JSON.stringify(AlDefaultSessionData));
-  public    notifyStream:AlTriggerStream = new AlTriggerStream( false );
+  /**
+   * A stream of session-related events that occur
+   */
+  public    notifyStream:AlTriggerStream        =   new AlTriggerStream( false );
+
+  /**
+   * Protected state properties
+   */
+  protected sessionIsActive                     =   false;
+  protected client:AlApiClient                  =   null;
+  protected sessionData: AIMSSessionDescriptor  =   JSON.parse(JSON.stringify(AlDefaultSessionData));
+
+  /**
+   * Tracks when the acting account is changing (measured as interval between AlActingAccountChangedEvent and AlActingAccountResolvedEvent)
+   * and allows systematic access to the last set of resolved data.
+   */
+  protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null, [], new AlEntitlementCollection() );
+  protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //    this functions as a mutex so that access to resolvedAccount is only available at appropriate times
 
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
@@ -96,7 +119,12 @@ export class AlSessionInstance
     */
     const persistedSession = this.getStorage();
     if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) ) {
-      this.setAuthentication(persistedSession);
+      try {
+          this.setAuthentication(persistedSession);
+      } catch( e ) {
+          this.deactivateSession();
+          console.warn(`Failed to reinstate session from localStorage: ${e.message}`, e );
+      }
     }
   }
 
@@ -144,9 +172,9 @@ export class AlSessionInstance
     Object.assign( this.sessionData.authentication.user, proposal.authentication.user );
     Object.assign( this.sessionData.authentication.account, proposal.authentication.account );
     if ( proposal.acting ) {
-        Object.assign( this.sessionData.acting, proposal.acting );
+        this.setActingAccount( proposal.acting );
     } else {
-        Object.assign( this.sessionData.acting, proposal.authentication.account );
+        this.setActingAccount( proposal.authentication.account );
     }
     this.sessionData.authentication.token = proposal.authentication.token;
     this.sessionData.authentication.token_expiration = proposal.authentication.token_expiration;
@@ -155,26 +183,30 @@ export class AlSessionInstance
   }
 
   /**
-   * Set the acting account for the current user
-   * Modelled on /aims/v1/:account_id/account
-   * To be called by AIMS Service
+   * Set the session's acting account.
+   *
+   * @param {AIMSAccount} The AIMSAccount object representating the account to focus on.
+   *
+   * @returns A promise that resolves
    */
-  setActingAccount(account: AIMSAccount) {
-    const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
-    this.sessionData.acting = account;
-    this.setStorage();
-    if ( actingAccountChanged ) {
-      this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
-    }
-  }
+  setActingAccount( account: AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
 
-  /**
-   * Resolves the acting account
-   */
-  resolveActingAccount( accountId:string ):Promise<AIMSAccount> {
-      return new Promise<AIMSAccount>( ( resolve, reject ) => {
-          resolve( null );
-      } );
+    if ( ! account ) {
+      throw new Error("Usage error: setActingAccount requires an account ID or account descriptor." );
+    }
+
+    const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
+
+    this.sessionData.acting = account;
+
+    if ( actingAccountChanged ) {
+      this.resolutionGuard.rescind();
+      this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
+      this.setStorage();
+      return this.resolveActingAccount( account );
+    } else {
+      return Promise.resolve( this.resolvedAccount );
+    }
   }
 
   /**
@@ -325,6 +357,14 @@ export class AlSessionInstance
     return this.sessionData.authentication.account.accessible_locations;
   }
 
+  public async getEffectiveEntitlements():Promise<AlEntitlementCollection> {
+    return this.resolutionGuard.then( () => this.resolvedAccount.entitlements );
+  }
+
+  public async getManagedAccounts():Promise<AIMSAccount[]> {
+    return this.resolutionGuard.then( () => this.resolvedAccount.managedAccounts );
+  }
+
   /**
    * Private Internal/Utility Methods
    */
@@ -332,8 +372,39 @@ export class AlSessionInstance
   /**
    * Get the current timestamp (seconds since the epoch)
    */
-  getCurrentTimestamp(): number {
+  protected getCurrentTimestamp(): number {
     return new Date().getTime() / 1000;
+  }
+
+  /**
+   * A utility method to resolve a partially populated AlActingAccountResolvedEvent instance.
+   *
+   * This method will retrieve the full account details, managed accounts, and entitlements for this account
+   * and then emit an AlActingAccountResolvedEvent through the session's notifyStream.
+   */
+  protected async resolveActingAccount( account:AIMSAccount ) {
+    const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null );
+    const dataSources:Promise<any>[] = [
+        AIMSClient.getAccountDetails( account.id ),
+        AIMSClient.getManagedAccounts( account.id ),
+        SubscriptionsClient.getEntitlements( account.id )
+    ];
+
+    return Promise.all( dataSources )
+            .then(  dataObjects => {
+                const account:AIMSAccount                   =   dataObjects[0];
+                const managedAccounts:AIMSAccount[]         =   dataObjects[1];
+                const entitlements:AlEntitlementCollection  =   dataObjects[2];
+
+                resolved.actingAccount      =   account;
+                resolved.managedAccounts    =   managedAccounts;
+                resolved.entitlements       =   entitlements;
+                this.resolvedAccount        =   resolved;
+                this.resolutionGuard.resolve(true);
+                this.notifyStream.trigger( resolved );
+
+                return resolved;
+            } );
   }
 
 
