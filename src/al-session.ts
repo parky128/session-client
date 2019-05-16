@@ -89,7 +89,7 @@ export class AlSessionInstance
   /**
    * A stream of session-related events that occur
    */
-  public    notifyStream:AlTriggerStream        =   new AlTriggerStream( false );
+  public    notifyStream:AlTriggerStream        =   new AlTriggerStream();
 
   /**
    * Protected state properties
@@ -108,7 +108,7 @@ export class AlSessionInstance
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
     this.notifyStream.siphon( this.client.events );
-    this.notifyStream.attach( AlClientBeforeRequestEvent, ( event:AlClientBeforeRequestEvent ) => {
+    this.notifyStream.attach( "AlClientBeforeRequest", ( event:AlClientBeforeRequestEvent ) => {
         if ( this.sessionIsActive ) {
             event.request.headers = event.request.headers || {};
             event.request.headers['X-AIMS-Auth-Token'] = this.getToken();
@@ -171,14 +171,14 @@ export class AlSessionInstance
     // Now that the content of the authentication session descriptor has been validated, let's make it effective
     Object.assign( this.sessionData.authentication.user, proposal.authentication.user );
     Object.assign( this.sessionData.authentication.account, proposal.authentication.account );
+    this.sessionData.authentication.token = proposal.authentication.token;
+    this.sessionData.authentication.token_expiration = proposal.authentication.token_expiration;
+    this.activateSession();
     if ( proposal.acting ) {
         this.setActingAccount( proposal.acting );
     } else {
         this.setActingAccount( proposal.authentication.account );
     }
-    this.sessionData.authentication.token = proposal.authentication.token;
-    this.sessionData.authentication.token_expiration = proposal.authentication.token_expiration;
-    this.activateSession();
     this.setStorage();
   }
 
@@ -228,8 +228,8 @@ export class AlSessionInstance
       this.sessionIsActive = true;
     }
     if ( this.sessionIsActive && ! wasActive ) {
+        this.notifyStream.tap();        //  *always* get notifyStream flowing at this point, so that we can intercept AlBeforeRequestEvents
         this.notifyStream.trigger( new AlSessionStartedEvent( this.sessionData.authentication.user, this.sessionData.authentication.account, this ) );
-        this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
     }
     return this.isActive();
   }
@@ -357,10 +357,28 @@ export class AlSessionInstance
     return this.sessionData.authentication.account.accessible_locations;
   }
 
+  /**
+   * Convenience method to resolve when authentication status and metadata have been resolved.
+   *
+   * PLEASE NOTE: that this async function will not resolve until authentication is complete and subscriptions metadata
+   * has been retrieved and collated; in an unauthenticated context, it will never resolve.
+   */
+  public async resolved(): Promise<void> {
+    return this.resolutionGuard.then( () => {} );
+  }
+
+  /**
+   * Convenience method to retrieve the entitlements for the current acting account.
+   * See caveats for `ALSession.authenticated` method, which also apply to this method.
+   */
   public async getEffectiveEntitlements():Promise<AlEntitlementCollection> {
     return this.resolutionGuard.then( () => this.resolvedAccount.entitlements );
   }
 
+  /**
+   * Convenience method to retrieve the array of accounts managed by the current acting account.
+   * See caveats for `ALSession.authenticated` method, which also apply to this method.
+   */
   public async getManagedAccounts():Promise<AIMSAccount[]> {
     return this.resolutionGuard.then( () => this.resolvedAccount.managedAccounts );
   }

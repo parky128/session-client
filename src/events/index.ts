@@ -11,7 +11,7 @@ export class AlSessionStartedEvent extends AlTriggeredEvent
     constructor( public user:AIMSUser,
                  public primaryAccount:AIMSAccount,
                  public session:AlSessionInstance ) {
-        super();
+        super( "AlSessionStarted" );
     }
 }
 
@@ -21,7 +21,7 @@ export class AlSessionStartedEvent extends AlTriggeredEvent
 export class AlSessionEndedEvent extends AlTriggeredEvent
 {
     constructor( public session:AlSessionInstance ) {
-        super();
+        super( "AlSessionEnded" );
     }
 }
 
@@ -34,7 +34,7 @@ export class AlActingAccountChangedEvent extends AlTriggeredEvent
 {
     constructor( public actingAccount:AIMSAccount,
                  public session:AlSessionInstance ) {
-        super();
+        super( "AlActingAccountChanged" );
     }
 }
 
@@ -48,6 +48,6 @@ export class AlActingAccountResolvedEvent extends AlTriggeredEvent
     constructor( public actingAccount:AIMSAccount,
                  public managedAccounts:AIMSAccount[],
                  public entitlements:AlEntitlementCollection ) {
-        super();
+        super( "AlActingAccountResolved" );
     }
 }
