@@ -266,6 +266,20 @@ export class AlSessionInstance
     return this.sessionData.authentication;
   }
 
+  /*
+   * Gets the ID of the primary account, the one the acting user belongs to.
+   */
+  getPrimaryAccountId(): string {
+      return this.isActive() ? this.sessionData.authentication.account.id : null;
+  }
+
+  /*
+   * Gets the primary account
+   */
+  getPrimaryAccount(): AIMSAccount {
+      return this.sessionData.authentication.account;
+  }
+
   /**
    * Get the ID of the acting account
    */
@@ -404,7 +418,7 @@ export class AlSessionInstance
     const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null );
     const dataSources:Promise<any>[] = [
         AIMSClient.getAccountDetails( account.id ),
-        AIMSClient.getManagedAccounts( account.id ),
+        AIMSClient.getManagedAccounts( this.getPrimaryAccountId() ),
         SubscriptionsClient.getEntitlements( account.id )
     ];
 
