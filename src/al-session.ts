@@ -12,12 +12,12 @@ import localStorageFallback from 'local-storage-fallback';
 import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
 import { AlBehaviorPromise } from '@al/haversack/promises';
 import { AlSchemaValidator } from '@al/haversack/schema-validator';
+import { AlResponseValidationError } from '@al/haversack/errors';
 import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent, AlActingAccountResolvedEvent } from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
   AlApiClient, AlDefaultClient,
   AIMSJsonSchematics,
-  AlResponseValidationError,
   AlClientBeforeRequestEvent
 } from '@al/client';
 import { AIMSClient } from '@al/aims';
