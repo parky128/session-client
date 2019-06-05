@@ -199,6 +199,7 @@ export class AlSessionInstance
     const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
 
     this.sessionData.acting = account;
+    ALClient.defaultAccountId = account.id;
 
     ALClient.defaultAccountId = account.id;
 
