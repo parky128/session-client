@@ -18,7 +18,8 @@ import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
   AlApiClient, AlDefaultClient,
   AIMSJsonSchematics,
-  AlClientBeforeRequestEvent
+  AlClientBeforeRequestEvent,
+  ALClient
 } from '@al/client';
 import { AIMSClient } from '@al/aims';
 import { AlEntitlementCollection, SubscriptionsClient } from '@al/subscriptions';
@@ -199,6 +200,8 @@ export class AlSessionInstance
 
     this.sessionData.acting = account;
 
+    ALClient.defaultAccountId = account.id;
+
     if ( actingAccountChanged ) {
       this.resolutionGuard.rescind();
       this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
@@ -242,6 +245,7 @@ export class AlSessionInstance
     this.sessionIsActive = false;
     localStorageFallback.removeItem('al_session');
     this.notifyStream.trigger( new AlSessionEndedEvent( this ) );
+    ALClient.defaultAccountId = null;
     return this.isActive();
   }
 
