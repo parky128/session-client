@@ -221,6 +221,7 @@ export class AlSessionInstance
   setTokenInfo(token: string, tokenExpiration: number) {
     this.sessionData.authentication.token = token;
     this.sessionData.authentication.token_expiration = tokenExpiration;
+    this.setStorage();
   }
 
   /**
