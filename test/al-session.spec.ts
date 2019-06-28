@@ -1,5 +1,5 @@
 
-import { ALSession } from '../src/index';
+import { ALSession, AlSessionInstance } from '../src/index';
 import { AIMSSessionDescriptor, AIMSAccount } from '@al/client';
 import localStorageFallback from 'local-storage-fallback';
 import { defaultSession, defaultActing } from './mocks/default-session.mock';
@@ -172,3 +172,51 @@ describe('After deactivating the session', () => {
     expect(localStorageFallback.getItem('al_session')).to.be.null;
   });
 });
+
+describe('AlSession', () => {
+  it( "should ignore expired session data on initialization", () => {
+    let sessionDescriptor = {
+      authentication: {
+          user: {
+            id: '12345-ABCDE',
+            name: 'Alert Logic',
+            email: 'alertlogic@unknown.com',
+            active: true,
+            locked: false,
+            version: 1,
+            linked_users: [],
+            created: {
+              at: 0,
+              by: 'ui-team',
+            },
+            modified: {
+              at: 0,
+              by: 'ui-team',
+            },
+          },
+          account: {
+            id: '2',
+            name: 'Alert Logic',
+            active: false,
+            accessible_locations: ['location-a', 'location-b'],
+            default_location: 'location-a',
+            mfa_required: false,
+            created: {
+              at: 0,
+              by: 'ui-team',
+            },
+            modified: {
+              at: 0,
+              by: 'ui-team',
+            },
+          },
+          token: 'abig-fake.JUICY-token',
+          token_expiration: + new Date() - 60 * 60,
+      }
+    };
+    localStorageFallback.setItem("al_session", JSON.stringify( sessionDescriptor ) );
+    let session = new AlSessionInstance();      //  sometimes it is easier to just not use singletons
+    expect( session.isActive() ).to.equal( false );
+  } );
+
+} );

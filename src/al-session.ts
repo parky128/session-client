@@ -119,13 +119,15 @@ export class AlSessionInstance
     * Initialise whatever may be persisted
     */
     const persistedSession = this.getStorage();
-    if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) ) {
+    if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) && persistedSession.authentication.token_expiration <= this.getCurrentTimestamp() ) {
       try {
           this.setAuthentication(persistedSession);
       } catch( e ) {
           this.deactivateSession();
           console.warn(`Failed to reinstate session from localStorage: ${e.message}`, e );
       }
+    } else {
+        localStorageFallback.removeItem('al_session');
     }
   }
 
@@ -148,6 +150,29 @@ export class AlSessionInstance
                   resolve( true );
                 },
                 error => reject( error ) );
+    } );
+  }
+
+  public async authenticateWithAccessToken( accessToken:string ):Promise<boolean> {
+    const request = {
+      service_name: 'aims',
+      version: 1,
+      path: '/token_info',
+      headers: {
+        'X-AIMS-Auth-Token': accessToken
+      }
+    };
+    return this.client.get( request ).then( (response:any) => {
+      let session:AIMSSessionDescriptor = {
+        authentication: {
+          account: response.account as AIMSAccount,
+          user: response.user as AIMSUser,
+          token: accessToken,
+          token_expiration: response.token_expiration
+        }
+      };
+      this.setAuthentication( session );
+      return true;
     } );
   }
 
