@@ -489,4 +489,4 @@ export class AlSessionInstance
 }
 
 /*  tslint:disable:variable-name */
-export const AlDefaultSession = new AlSessionInstance();
+export const AlSession = new AlSessionInstance();
