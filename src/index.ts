@@ -1,6 +1,7 @@
 export * from './events';
+export * from './utilities';
 export {
     AlSessionInstance,
-    AlDefaultSession,
-    AlDefaultSession as ALSession       /* deprecated */
+    AlSession,
+    AlSession as ALSession       /* deprecated */
 } from './al-session';
