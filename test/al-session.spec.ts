@@ -1,4 +1,3 @@
-
 import { ALSession, AlSessionInstance } from '../src/index';
 import { AIMSSessionDescriptor, AIMSAccount } from '@al/client';
 import localStorageFallback from 'local-storage-fallback';
