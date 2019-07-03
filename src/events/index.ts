@@ -32,7 +32,8 @@ export class AlSessionEndedEvent extends AlTriggeredEvent
  */
 export class AlActingAccountChangedEvent extends AlTriggeredEvent
 {
-    constructor( public actingAccount:AIMSAccount,
+    constructor( public previousAccount:AIMSAccount,
+                 public actingAccount:AIMSAccount,
                  public session:AlSessionInstance ) {
         super( "AlActingAccountChanged" );
     }
