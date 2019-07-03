@@ -10,6 +10,7 @@
 
 import localStorageFallback from 'local-storage-fallback';
 import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
+import { AlGlobalizer, AlStopwatch } from '@al/haversack/utility';
 import { AlBehaviorPromise } from '@al/haversack/promises';
 import { AlSchemaValidator } from '@al/haversack/schema-validator';
 import { AlResponseValidationError } from '@al/haversack/errors';
@@ -129,6 +130,24 @@ export class AlSessionInstance
     } else {
         localStorageFallback.removeItem('al_session');
     }
+    AlGlobalizer.expose( 'al.session', {
+        state: () => {
+            return this.sessionData;
+        },
+        setActingAccount: ( accountId:string ) => {
+            if ( ! this.isActive() ) {
+                console.warn("The acting account cannot be changed while in an unauthenticated state." );
+                return;
+            }
+            this.setActingAccount( accountId )
+                  .then(  result => {
+                              console.log("OK");
+                          },
+                          error => {
+                              console.warn("Failed to set the acting account", error );
+                          } );
+        }
+    } );
   }
 
   public async authenticate( username:string, passphrase:string, mfaCode?:string ):Promise<boolean> {
@@ -154,21 +173,13 @@ export class AlSessionInstance
   }
 
   public async authenticateWithAccessToken( accessToken:string ):Promise<boolean> {
-    const request = {
-      service_name: 'aims',
-      version: 1,
-      path: '/token_info',
-      headers: {
-        'X-AIMS-Auth-Token': accessToken
-      }
-    };
-    return this.client.get( request ).then( (response:any) => {
+    return AIMSClient.getTokenInfo( accessToken ).then( tokenInfo => {
       let session:AIMSSessionDescriptor = {
         authentication: {
-          account: response.account as AIMSAccount,
-          user: response.user as AIMSUser,
+          account: tokenInfo.account,
+          user: tokenInfo.user,
           token: accessToken,
-          token_expiration: response.token_expiration
+          token_expiration: tokenInfo.token_expiration
         }
       };
       this.setAuthentication( session );
@@ -215,22 +226,26 @@ export class AlSessionInstance
    *
    * @returns A promise that resolves
    */
-  setActingAccount( account: AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
+  setActingAccount( account: string|AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
 
     if ( ! account ) {
       throw new Error("Usage error: setActingAccount requires an account ID or account descriptor." );
     }
+    if ( typeof( account ) === 'string' ) {
+      return AIMSClient.getAccountDetails( account ).then( accountDetails => {
+        return this.setActingAccount( accountDetails );
+      } );
+    }
 
+    const previousAccount = this.sessionData.acting;
     const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
 
     this.sessionData.acting = account;
     ALClient.defaultAccountId = account.id;
 
-    ALClient.defaultAccountId = account.id;
-
     if ( actingAccountChanged ) {
       this.resolutionGuard.rescind();
-      this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this ) );
+      this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
       this.setStorage();
       return this.resolveActingAccount( account );
     } else {
@@ -489,4 +504,4 @@ export class AlSessionInstance
 }
 
 /*  tslint:disable:variable-name */
-export const AlSession = new AlSessionInstance();
+export const AlSession = AlGlobalizer.instantiate( "AlSession", () => new AlSessionInstance() );
