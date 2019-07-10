@@ -2,9 +2,21 @@ import { AlSessionDetector, AlConduitClient } from '../src/utilities';
 import { AIMSAuthentication } from '@al/aims';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
+import * as sinon from 'sinon';
+
+class AlMockConduitClient extends AlConduitClient
+{
+    constructor() {
+        super();
+    }
+}
+
+class MockWebAuth
+{
+}
 
 describe('AlSessionDetector', () => {
-    let conduit = new AlConduitClient();
+    let conduit = new AlMockConduitClient();
     let sessionDetector = new AlSessionDetector( conduit );
 
     describe("after initialization", () => {
@@ -51,24 +63,6 @@ describe('AlSessionDetector', () => {
         } );
     } );
 
-    describe(".normalizeAIMSSessionData", () => {
-        it( "should calculate token expiration if it is not already included in the session data object", async () => {
-            let authenticationData = {
-                user: {
-                    id: 1,
-                    name: "Some User"
-                },
-                account: {
-                    id: 1,
-                    name: "Some Account"
-                },
-                token: "blahblahblah.eyJleHAiOjEwMDAwMDAwLCJzb21ldGhpbmcgZWxzZSI6ImhhaGEifQ==.blahblahblah"
-            };
-            let data = await sessionDetector['normalizeAIMSSessionData']( <any>authenticationData );
-            expect( data.token_expiration ).to.equal( 10000000 );
-        } );
-    } );
-
     describe(".extractUserInfo", () => {
         it( "should get an accountId/userId pair from validly formatted auth0 identity data", () => {
             let identityData = {
@@ -91,5 +85,4 @@ describe('AlSessionDetector', () => {
             expect( () => { sessionDetector['extractUserInfo']( identityData ); } ).to.throw();
         } );
     } );
-
 } );

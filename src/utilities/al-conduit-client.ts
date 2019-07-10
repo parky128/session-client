@@ -16,7 +16,7 @@ export class AlConduitClient
     constructor() {
     }
 
-    public start() {
+    public start( targetDocument:Document = document ) {
         this.conduitUri = ALClient.resolveLocation( AlLocation.AccountsUI, '/conduit.html' );
         document.body.append( this.render() );
         AlStopwatch.once(this.validateReadiness, 5000);
