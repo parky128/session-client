@@ -120,7 +120,7 @@ export class AlSessionInstance
     * Initialise whatever may be persisted
     */
     const persistedSession = this.getStorage();
-    if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) && persistedSession.authentication.token_expiration <= this.getCurrentTimestamp() ) {
+    if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) && persistedSession.authentication.token_expiration >= this.getCurrentTimestamp() ) {
       try {
           this.setAuthentication(persistedSession);
       } catch( e ) {
