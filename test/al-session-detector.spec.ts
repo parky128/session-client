@@ -1,23 +1,27 @@
 import { AlSessionDetector, AlConduitClient } from '../src/utilities';
-import { AIMSAuthentication } from '@al/aims';
+import { ALSession } from '../src';
+import { AIMSClient, AIMSAuthentication, AIMSSessionDescriptor } from '@al/aims';
+import { defaultSession } from './mocks/default-session.mock';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 import * as sinon from 'sinon';
 
-class AlMockConduitClient extends AlConduitClient
-{
-    constructor() {
-        super();
-    }
-}
-
-class MockWebAuth
-{
-}
-
 describe('AlSessionDetector', () => {
-    let conduit = new AlMockConduitClient();
-    let sessionDetector = new AlSessionDetector( conduit );
+    let conduit:AlConduitClient;
+    let sessionDetector:AlSessionDetector;
+    let warnStub, errorStub;
+
+    beforeEach( () => {
+        conduit = new AlConduitClient();
+        sessionDetector = new AlSessionDetector( conduit, true );
+        warnStub = sinon.stub( console, 'warn' );
+        errorStub = sinon.stub( console, 'error' );
+    } );
+
+    afterEach( () => {
+        warnStub.restore();
+        errorStub.restore();
+    } );
 
     describe("after initialization", () => {
         it( "should have known properties", () => {
@@ -85,4 +89,121 @@ describe('AlSessionDetector', () => {
             expect( () => { sessionDetector['extractUserInfo']( identityData ); } ).to.throw();
         } );
     } );
+
+    describe( ".forceAuthentication()", () => {
+        it("should redirect to the expected location", () => {
+            let redirectStub = sinon.stub( sessionDetector, 'redirect' );
+            sessionDetector.forceAuthentication();
+            expect( redirectStub.callCount ).to.equal( 1 );
+        } );
+    } );
+
+    describe( ".normalizeSessionDescriptor()", () => {
+        let getTokenInfoStub;
+        beforeEach( () => {
+            getTokenInfoStub = sinon.stub( AIMSClient, 'getTokenInfo' ).returns( Promise.resolve( defaultSession.authentication ) );
+        } );
+        afterEach( () => {
+            getTokenInfoStub.restore();
+        } );
+        it( "should resolve immediately if the descriptor is fully populated", async () => {
+            let result = await sessionDetector.normalizeSessionDescriptor( defaultSession );
+            expect( result ).to.equal( defaultSession );
+            expect( getTokenInfoStub.callCount ).to.equal( 0 );
+        } );
+        it( "should request token info if the descriptor is missing information", async () => {
+            let result = await sessionDetector.normalizeSessionDescriptor( {
+                authentication: {
+                    token: defaultSession.authentication.token,
+                    token_expiration: null,
+                    account: null,
+                    user: null
+                }
+            } );
+            expect( result ).to.be.an( 'object' );
+            expect( getTokenInfoStub.callCount ).to.equal( 1 );
+        } );
+    } );
+
+    describe( ".onDetectionFail()", () => {
+        it( "should emit warning, call resolver, and set values", () => {
+            let result = null;
+            let resolver = ( value:boolean ) => {
+                result = value;
+            };
+            sessionDetector.onDetectionFail( resolver, null );
+            expect( result ).to.equal( false );
+            expect( warnStub.callCount ).to.equal( 0 );
+            expect( sessionDetector.authenticated ).to.equal( false );
+
+            sessionDetector.onDetectionFail( resolver, "A message" );
+            expect( warnStub.callCount ).to.equal( 1 );
+
+        } );
+    } );
+
+    describe( ".onDetectionSuccess()", () => {
+        it( "should emit warning, call resolver, and set values", () => {
+            let result = null;
+            let resolver = ( value:boolean ) => {
+                result = value;
+            };
+            sessionDetector.onDetectionSuccess( resolver );
+            expect( result ).to.equal( true );
+            expect( sessionDetector.authenticated ).to.equal( true );
+        } );
+    } );
+
+    describe(".ingestExistingSession()", () => {
+        it( "should catch errors", async () => {
+            let garbage:any = {
+                authentication: {
+                    token: "blahblahblah",
+                    token_expiration: ( Date.now() / 1000 ) + 20000,
+                    user: {
+                        id: "wrong"
+                    },
+                    account: {
+                        id: "wronger"
+                    }
+                }
+            };
+            let rejected = false;
+            await sessionDetector.ingestExistingSession( garbage ).then( () => {}, () => {
+                rejected = true;
+            } );
+            expect( rejected ).to.equal( true );
+            expect( sessionDetector.authenticated ).to.equal( false );
+            expect( errorStub.callCount ).to.be.above( 0 );
+        } );
+        it( "should normalize and ingest a valid session descriptor", async () => {
+            let normalizeStub = sinon.stub( sessionDetector, 'normalizeSessionDescriptor' ).returns( Promise.resolve( defaultSession ) );
+            await sessionDetector.ingestExistingSession( {
+                authentication: {
+                    token: defaultSession.authentication.token,
+                    token_expiration: null,
+                    user: null,
+                    account: null
+                }
+            } );
+            expect( sessionDetector.authenticated ).to.equal( true );
+            expect( errorStub.callCount ).to.equal( 0 );
+            normalizeStub.restore();
+        } );
+    } );
+
+    describe("detectSession()", () => {
+        describe("with a local session", () => {
+            it( "should resolve true", ( done ) => {
+                ALSession.deactivateSession();
+                ALSession.setAuthentication( defaultSession );
+                sessionDetector.detectSession().then( result => {
+                    expect( result ).to.equal( true );
+                    expect( sessionDetector.authenticated ).to.equal( true );
+                    done();
+                } );
+            } );
+        } );
+    } );
+
 } );

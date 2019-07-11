@@ -1,3 +1,5 @@
+let nowTS = Date.now() / 1000;
+
 export const defaultSession = {
   authentication: {
     user: {
@@ -33,7 +35,7 @@ export const defaultSession = {
       },
     },
     token: '',
-    token_expiration: 0,
+    token_expiration: nowTS + 86400,
   },
   acting: {
     id: '0',

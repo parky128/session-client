@@ -74,6 +74,7 @@ export class AlSessionDetector
              */
             this.conduit.getSession()
                 .then( session => {
+                    console.log("Got conduit result!", session );
                     if ( session && typeof( session ) === 'object' ) {
                         this.ingestExistingSession( session )
                             .then(  () => {
@@ -138,9 +139,7 @@ export class AlSessionDetector
     public forceAuthentication() {
         const loginUri = ALClient.resolveLocation(AlLocation.AccountsUI, '/#/login');
         const returnUri = window.location.origin + ((window.location.pathname && window.location.pathname.length > 1) ? window.location.pathname : "");
-        const redirectUri = `${loginUri}?return=${encodeURIComponent(returnUri)}&token=aims_token`;
-        console.warn('Not authenticated: redirecting to %s', redirectUri);
-        window.location.replace(redirectUri);
+        this.redirect( `${loginUri}?return=${encodeURIComponent(returnUri)}&token=null`, "User is not authenticated; redirecting to login." );
     }
 
     /**
@@ -148,11 +147,11 @@ export class AlSessionDetector
      *  referenced -- this method will collect any missing data elements
      */
 
-    async ingestExistingSession( proposedSession: AIMSSessionDescriptor ): Promise<boolean> {
+    ingestExistingSession = async ( proposedSession: AIMSSessionDescriptor ):Promise<boolean> => {
         let session = await this.normalizeSessionDescriptor( proposedSession );
         try {
             AlSession.setAuthentication( session );
-            this.authenticated = true;
+            this.authenticated = AlSession.isActive();
             return true;
         } catch( e ) {
             this.authenticated = false;
@@ -161,6 +160,12 @@ export class AlSessionDetector
         }
     }
 
+    redirect = ( targetUri:string, message:string = null ) => {
+        if ( message ) {
+            console.warn( message, targetUri );
+        }
+        window.location.replace(targetUri);
+    }
 
     /**
      * Handles promise-based session-detection success (resolve true)
