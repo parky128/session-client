@@ -67,8 +67,8 @@ export class AlConduitClient
             .then( rawResponse => rawResponse.setting );
     }
 
-    public setGlobalSetting(setting: {key: string, data: any}): Promise<any> {
-        return this.request("conduit.setGlobalSetting", { setting: setting })
+    public setGlobalSetting(key: string, data: any): Promise<any> {
+        return this.request("conduit.setGlobalSetting", { setting_key: key, setting_data: data })
             .then( rawResponse => rawResponse.setting );
     }
 
