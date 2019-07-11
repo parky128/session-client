@@ -210,7 +210,7 @@ describe('AlSession', () => {
             },
           },
           token: 'abig-fake.JUICY-token',
-          token_expiration: + new Date() - 60 * 60,
+          token_expiration: ( Date.now() / 1000 ) - ( 60 * 60 ),
       }
     };
     localStorageFallback.setItem("al_session", JSON.stringify( sessionDescriptor ) );

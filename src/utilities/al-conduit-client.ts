@@ -16,7 +16,7 @@ export class AlConduitClient
     constructor() {
     }
 
-    public start() {
+    public start( targetDocument:Document = document ) {
         this.conduitUri = ALClient.resolveLocation( AlLocation.AccountsUI, '/conduit.html' );
         document.body.append( this.render() );
         AlStopwatch.once(this.validateReadiness, 5000);
@@ -60,6 +60,16 @@ export class AlConduitClient
     public deleteSession(): Promise<boolean> {
         return this.request('conduit.deleteSession')
                     .then( rawResponse => true );
+    }
+
+    public getGlobalSetting(settingKey: string): Promise<any> {
+        return this.request("conduit.getGlobalSetting", { setting_key: settingKey })
+            .then( rawResponse => rawResponse.setting );
+    }
+
+    public setGlobalSetting(key: string, data: any): Promise<any> {
+        return this.request("conduit.setGlobalSetting", { setting_key: key, setting_data: data })
+            .then( rawResponse => rawResponse.setting );
     }
 
     public onReceiveMessage = (event: any):void => {
