@@ -94,6 +94,8 @@ export class AlConduitClient
             case 'conduit.getSession':
             case 'conduit.setSession':
             case 'conduit.deleteSession':
+            case 'conduit.getGlobalSetting':
+            case 'conduit.setGlobalSetting':
                 return this.onDispatchReply(event);
             default:
                 console.warn('O3ConduitService: Ignoring unrecognized message type: %s', event.data.type, event);
