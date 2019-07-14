@@ -130,6 +130,8 @@ export class AlSessionInstance
     } else {
         localStorageFallback.removeItem('al_session');
     }
+
+    /* istanbul ignore next */
     AlGlobalizer.expose( 'al.session', {
         state: () => {
             return this.sessionData;

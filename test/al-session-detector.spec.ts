@@ -1,10 +1,11 @@
 import { AlSessionDetector, AlConduitClient } from '../src/utilities';
 import { ALSession } from '../src';
 import { AIMSClient, AIMSAuthentication, AIMSSessionDescriptor } from '@al/aims';
-import { defaultSession } from './mocks/default-session.mock';
+import { exampleSession } from './mocks/session-data.mocks';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
 import * as sinon from 'sinon';
+import { WebAuth } from 'auth0-js';
 
 describe('AlSessionDetector', () => {
     let conduit:AlConduitClient;
@@ -101,20 +102,20 @@ describe('AlSessionDetector', () => {
     describe( ".normalizeSessionDescriptor()", () => {
         let getTokenInfoStub;
         beforeEach( () => {
-            getTokenInfoStub = sinon.stub( AIMSClient, 'getTokenInfo' ).returns( Promise.resolve( defaultSession.authentication ) );
+            getTokenInfoStub = sinon.stub( AIMSClient, 'getTokenInfo' ).returns( Promise.resolve( exampleSession.authentication ) );
         } );
         afterEach( () => {
             getTokenInfoStub.restore();
         } );
         it( "should resolve immediately if the descriptor is fully populated", async () => {
-            let result = await sessionDetector.normalizeSessionDescriptor( defaultSession );
-            expect( result ).to.equal( defaultSession );
+            let result = await sessionDetector.normalizeSessionDescriptor( exampleSession );
+            expect( result ).to.equal( exampleSession );
             expect( getTokenInfoStub.callCount ).to.equal( 0 );
         } );
         it( "should request token info if the descriptor is missing information", async () => {
             let result = await sessionDetector.normalizeSessionDescriptor( {
                 authentication: {
-                    token: defaultSession.authentication.token,
+                    token: exampleSession.authentication.token,
                     token_expiration: null,
                     account: null,
                     user: null
@@ -177,10 +178,10 @@ describe('AlSessionDetector', () => {
             expect( errorStub.callCount ).to.be.above( 0 );
         } );
         it( "should normalize and ingest a valid session descriptor", async () => {
-            let normalizeStub = sinon.stub( sessionDetector, 'normalizeSessionDescriptor' ).returns( Promise.resolve( defaultSession ) );
+            let normalizeStub = sinon.stub( sessionDetector, 'normalizeSessionDescriptor' ).returns( Promise.resolve( exampleSession ) );
             await sessionDetector.ingestExistingSession( {
                 authentication: {
-                    token: defaultSession.authentication.token,
+                    token: exampleSession.authentication.token,
                     token_expiration: null,
                     user: null,
                     account: null
@@ -193,14 +194,75 @@ describe('AlSessionDetector', () => {
     } );
 
     describe("detectSession()", () => {
+        describe("with an existing session promise", () => {
+            it( "should just return the existing promise", () => {
+                ALSession.deactivateSession();
+                let fakePromise = new Promise<boolean>( ( resolve, reject ) => {} );
+                AlSessionDetector['detectionPromise'] = fakePromise;
+
+                let result = sessionDetector.detectSession();
+                expect( result ).to.equal( fakePromise );
+                sessionDetector.onDetectionFail( () => {} );      //  kill the promise
+            } );
+
+        } );
         describe("with a local session", () => {
             it( "should resolve true", ( done ) => {
                 ALSession.deactivateSession();
-                ALSession.setAuthentication( defaultSession );
+                ALSession.setAuthentication( exampleSession );
                 sessionDetector.detectSession().then( result => {
                     expect( result ).to.equal( true );
                     expect( sessionDetector.authenticated ).to.equal( true );
+                    sessionDetector.onDetectionFail( () => {} );      //  kill the promise
                     done();
+                } );
+            } );
+        } );
+
+        describe("with a conduit session", () => {
+            it( "should resolve true", ( done ) => {
+                ALSession.deactivateSession();
+                let getSessionStub = sinon.stub( conduit, 'getSession' ).returns( Promise.resolve( exampleSession ) );
+                sessionDetector.detectSession().then( result => {
+                    expect( result ).to.equal( true );
+                    expect( sessionDetector.authenticated ).to.equal( true );
+                    sessionDetector.onDetectionFail( () => {} );      //  kill the promise
+                    getSessionStub.restore();
+                    done();
+                }, error => {
+                    expect( "Shouldn't get a promise rejection!").to.equal( false );
+                } );
+            } );
+        } );
+        describe("with an auth0 session", () => {
+            it( "should resolve true", ( done ) => {
+                ALSession.deactivateSession();
+
+                let auth0AuthStub = sinon.stub( sessionDetector, 'getAuth0Authenticator' ).returns( <WebAuth><unknown>{
+                    checkSession: ( config, callback ) => {
+                        callback( null, {
+                            accessToken: 'big-fake-access-token'
+                        } );
+                    },
+                    client: {
+                        userInfo: ( accessToken, callback ) => {
+                            callback( null, {
+                                "https://alertlogic.com/": {
+                                    sub: "2:10001000-1000"
+                                }
+                            } );
+                        }
+                    }
+                } );
+                let getSessionStub = sinon.stub( conduit, 'getSession' ).returns( Promise.resolve( null ) );
+
+                sessionDetector.detectSession().then( result => {
+                    sessionDetector.onDetectionFail( () => {} );      //  kill the promise
+                    getSessionStub.restore();
+                    auth0AuthStub.restore();
+                    done();
+                }, error => {
+                    expect( "Shouldn't get a promise rejection!").to.equal( false );
                 } );
             } );
         } );
