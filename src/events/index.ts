@@ -9,8 +9,7 @@ import { AlSessionInstance } from '../al-session';
 export class AlSessionStartedEvent extends AlTriggeredEvent
 {
     constructor( public user:AIMSUser,
-                 public primaryAccount:AIMSAccount,
-                 public session:AlSessionInstance ) {
+                 public primaryAccount:AIMSAccount ) {
         super( "AlSessionStarted" );
     }
 }
