@@ -1,6 +1,7 @@
 import { ALSession, AlSessionInstance } from '../src/index';
 import { ALClient, AIMSSessionDescriptor, AIMSAccount, AlClientBeforeRequestEvent } from '@al/client';
 import { AIMSClient } from '@al/aims';
+import { SubscriptionsClient, AlEntitlementCollection } from '@al/subscriptions';
 import localStorageFallback from 'local-storage-fallback';
 import { exampleSession, exampleActing } from './mocks/session-data.mocks';
 import { expect, assert } from 'chai';
@@ -352,4 +353,58 @@ describe('AlSession', () => {
 
   } );
 
+  describe( 'helper methods', () => {
+    let session:AlSessionInstance;
+    let accountDetailsStub, managedAccountsStub, entitlementsStub;
+    let accountDetails = exampleActing;
+    let managedAccounts = [];
+    let entitlements = new AlEntitlementCollection();
+
+    beforeEach( () => {
+      session = new AlSessionInstance();
+      accountDetailsStub = sinon.stub( AIMSClient, 'getAccountDetails' ).returns( Promise.resolve( accountDetails ) );
+      managedAccountsStub = sinon.stub( AIMSClient, 'getManagedAccounts' ).returns( Promise.resolve( managedAccounts ) );
+      entitlementsStub = sinon.stub( SubscriptionsClient, 'getEntitlements' ).returns( Promise.resolve( entitlements ) );
+    } );
+
+    afterEach( () => {
+      accountDetailsStub.restore();
+      managedAccountsStub.restore();
+      entitlementsStub.restore();
+    } );
+
+    describe( ".resolved()", () => {
+
+      it("should not be resolved in an unauthenticated context", () => {
+        expect( session['resolutionGuard']['fulfilled'] ).to.equal( false );
+      } );
+
+      it("should be resolved after authentication", async () => {
+        session.setAuthentication( exampleSession );
+        await session.resolved();
+        expect( session.isActive() ).to.equal( true );
+        expect( session['resolutionGuard']['fulfilled'] ).to.equal( true );
+      } );
+    } );
+
+    describe( ".getPrimaryEntitlements()", () => {
+      xit("should return the entitlements of the primary account after account resolution is finished", ( done ) => {
+        session.getPrimaryEntitlements().then( primaryEntitlements => {
+          expect( primaryEntitlements ).to.equal( entitlements );
+          done();
+        } );
+        session.setAuthentication( exampleSession );
+      } );
+    } );
+
+    describe( ".getEffectiveEntitlements()", () => {
+      xit("should return the entitlements of the acting account after account resolution is finished", ( done ) => {
+        session.getEffectiveEntitlements().then( actingEntitlements => {
+          expect( actingEntitlements ).to.equal( entitlements );
+          done();
+        } );
+        session.setAuthentication( exampleSession );
+      } );
+    } );
+  } );
 } );
