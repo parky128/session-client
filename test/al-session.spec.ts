@@ -160,6 +160,32 @@ describe('ALSession - Acting AIMSAccount value persistance Test Suite:', () => {
       expect(ALSession.getActingAccountDefaultLocation()).to.equal(actingAccount.default_location);
     });
   });
+  describe('calling setActingAccount with just an account ID', () => {
+    let accountDetailsStub, managedAccountsStub, entitlementsStub;
+    beforeEach( () => {
+      accountDetailsStub = sinon.stub( AIMSClient, 'getAccountDetails' ).returns( Promise.resolve( actingAccount ) );
+      managedAccountsStub = sinon.stub( AIMSClient, 'getManagedAccounts' ).returns( Promise.resolve( [] ) );
+      entitlementsStub = sinon.stub( SubscriptionsClient, 'getEntitlements' ).resolves( new AlEntitlementCollection() );
+    } );
+    afterEach( () => {
+      accountDetailsStub.restore();
+      managedAccountsStub.restore();
+      entitlementsStub.restore();
+    } );
+    it('should call AIMSClient.getAccountDetails to retrieve the complete account record before executing', async () => {
+        await ALSession.setActingAccount( actingAccount.id );
+        expect( ALSession.getActingAccountID() ).to.equal( actingAccount.id );
+        expect( accountDetailsStub.callCount ).to.equal( 2 );       //  Twice: once to resolve account details, second (cached) during account resolution
+
+        ALSession.setActingAccount( actingAccount );
+        expect( ALSession.getActingAccountID() ).to.equal( actingAccount.id );
+    } );
+  } );
+  describe('calling setActingAccount with nothing', () => {
+      it('should throw', () => {
+          expect( () => { ALSession.setActingAccount( null ); } ).to.throw();
+      } );
+  } );
 });
 
 describe('After deactivating the session', () => {
@@ -371,6 +397,7 @@ describe('AlSession', () => {
       accountDetailsStub.restore();
       managedAccountsStub.restore();
       entitlementsStub.restore();
+      session.deactivateSession();
     } );
 
     describe( ".resolved()", () => {
@@ -388,7 +415,7 @@ describe('AlSession', () => {
     } );
 
     describe( ".getPrimaryEntitlements()", () => {
-      xit("should return the entitlements of the primary account after account resolution is finished", ( done ) => {
+      it("should return the entitlements of the primary account after account resolution is finished", ( done ) => {
         session.getPrimaryEntitlements().then( primaryEntitlements => {
           expect( primaryEntitlements ).to.equal( entitlements );
           done();
@@ -398,7 +425,7 @@ describe('AlSession', () => {
     } );
 
     describe( ".getEffectiveEntitlements()", () => {
-      xit("should return the entitlements of the acting account after account resolution is finished", ( done ) => {
+      it("should return the entitlements of the acting account after account resolution is finished", ( done ) => {
         session.getEffectiveEntitlements().then( actingEntitlements => {
           expect( actingEntitlements ).to.equal( entitlements );
           done();
@@ -406,5 +433,14 @@ describe('AlSession', () => {
         session.setAuthentication( exampleSession );
       } );
     } );
+
+    describe( ".getManagedAccounts()", () => {
+      it("should return the list of accounts managed by the primary account after account resolution is finished", async () => {
+        session.setAuthentication( exampleSession );
+        let accountList = await session.getManagedAccounts();
+        expect( accountList ).to.equal( managedAccounts );
+      } );
+    } );
+
   } );
 } );
