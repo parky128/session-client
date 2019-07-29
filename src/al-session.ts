@@ -194,7 +194,7 @@ export class AlSessionInstance
     this.sessionData.acting = account;
     ALClient.defaultAccountId = account.id;
 
-    if ( actingAccountChanged ) {
+    if ( actingAccountChanged || ! this.resolutionGuard.isFulfilled() ) {
       this.resolutionGuard.rescind();
       this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
       this.setStorage();
@@ -383,7 +383,6 @@ export class AlSessionInstance
    * See caveats for `ALSession.authenticated` method, which also apply to this method.
    */
   public async getPrimaryEntitlements():Promise<AlEntitlementCollection> {
-    console.log("Waiting..." );
     return this.resolutionGuard.then( () => this.primaryEntitlements );
   }
 
@@ -392,7 +391,6 @@ export class AlSessionInstance
    * See caveats for `ALSession.authenticated` method, which also apply to this method.
    */
   public async getEffectiveEntitlements():Promise<AlEntitlementCollection> {
-    console.log("Waiting..." );
     return this.resolutionGuard.then( () => this.resolvedAccount.entitlements );
   }
 
