@@ -8,7 +8,7 @@
 import { WebAuth } from 'auth0-js';
 import { AlLocatorService, AlLocation } from '@al/haversack/locator';
 import { AlBehaviorPromise } from '@al/haversack/promises';
-import { AlSession } from '../al-session';
+import { ALSession } from '../index';
 import { ALClient } from '@al/client';
 import { AIMSClient, AIMSSessionDescriptor, AIMSAuthentication, AIMSUser, AIMSAccount } from '@al/aims';
 import { AlConduitClient } from './al-conduit-client';
@@ -65,7 +65,7 @@ export class AlSessionDetector
             /**
              * Does AlSession say we're active?  If so, then yey!
              */
-            if ( AlSession.isActive() ) {
+            if ( ALSession.isActive() ) {
                 return this.onDetectionSuccess( resolve );
             }
 
@@ -74,7 +74,6 @@ export class AlSessionDetector
              */
             this.conduit.getSession()
                 .then( session => {
-                    console.log("Got conduit result!", session );
                     if ( session && typeof( session ) === 'object' ) {
                         this.ingestExistingSession( session )
                             .then(  () => {
@@ -150,8 +149,8 @@ export class AlSessionDetector
     ingestExistingSession = async ( proposedSession: AIMSSessionDescriptor ):Promise<boolean> => {
         let session = await this.normalizeSessionDescriptor( proposedSession );
         try {
-            AlSession.setAuthentication( session );
-            this.authenticated = AlSession.isActive();
+            ALSession.setAuthentication( session );
+            this.authenticated = ALSession.isActive();
             return true;
         } catch( e ) {
             this.authenticated = false;
@@ -160,6 +159,7 @@ export class AlSessionDetector
         }
     }
 
+    /* istanbul ignore next */
     redirect = ( targetUri:string, message:string = null ) => {
         if ( message ) {
             console.warn( message, targetUri );
@@ -243,8 +243,9 @@ export class AlSessionDetector
     }
 
     /**
-     * Retrieve a reference to the Auth0 web auth instance.
+     * Retrieve a reference to the Auth0 web auth instance.  This code is excluded from unit testing.
      */
+    /* istanbul ignore next */
     getAuth0Authenticator():WebAuth {
         if ( AlSessionDetector.auth0Client === undefined ) {
             /* Because Auth0 persists itself as a global, we will need to cast it from <any>window.auth.  Fun stuff :/ */

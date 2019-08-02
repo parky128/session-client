@@ -24,64 +24,8 @@ import {
 } from '@al/client';
 import { AIMSClient } from '@al/aims';
 import { AlEntitlementCollection, SubscriptionsClient } from '@al/subscriptions';
+import { AlNullSessionDescriptor } from './null-session';
 
-/**
- * Create our default session object
- */
-/* tslint:disable:variable-name */
-const AlDefaultSessionData: AIMSSessionDescriptor = {
-    authentication: {
-      user: {
-        id: '0',
-        name: 'Unauthenticated User',
-        email: 'unauthenticated_user@unknown.com',
-        active: false,
-        locked: true,
-        version: 1,
-        created: {
-          at: 0,
-          by: '',
-        },
-        modified: {
-          at: 0,
-          by: '',
-        },
-      },
-      account: {
-        id: '0',
-        name: 'Unknown Company',
-        active: false,
-        accessible_locations: [],
-        default_location: '',
-        created: {
-          at: 0,
-          by: '',
-        },
-        modified: {
-          at: 0,
-          by: '',
-        },
-      },
-      token: '',
-      token_expiration: 0,
-    },
-    acting: {
-      id: '0',
-      name: 'Unknown Company',
-      active: false,
-      version: 1,
-      accessible_locations: [],
-      default_location: '',
-      created: {
-        at: 0,
-        by: '',
-      },
-      modified: {
-        at: 0,
-        by: '',
-      },
-    },
-};
 
 /**
  * AlSessionInstance maintains session data for a specific session.
@@ -89,7 +33,7 @@ const AlDefaultSessionData: AIMSSessionDescriptor = {
 export class AlSessionInstance
 {
   /**
-   * A stream of session-related events that occur
+   * A stream of events that occur over the lifespan of a user session
    */
   public    notifyStream:AlTriggerStream        =   new AlTriggerStream();
 
@@ -98,14 +42,15 @@ export class AlSessionInstance
    */
   protected sessionIsActive                     =   false;
   protected client:AlApiClient                  =   null;
-  protected sessionData: AIMSSessionDescriptor  =   JSON.parse(JSON.stringify(AlDefaultSessionData));
+  protected sessionData: AIMSSessionDescriptor  =   JSON.parse(JSON.stringify(AlNullSessionDescriptor));
 
   /**
    * Tracks when the acting account is changing (measured as interval between AlActingAccountChangedEvent and AlActingAccountResolvedEvent)
    * and allows systematic access to the last set of resolved data.
    */
-  protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null, [], new AlEntitlementCollection() );
-  protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //    this functions as a mutex so that access to resolvedAccount is only available at appropriate times
+  protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null, [], new AlEntitlementCollection() );    //  Acting account's account record, child account list, and entitlements
+  protected primaryEntitlements                 =   new AlEntitlementCollection();                                                  //  Primary account's entitlements
+  protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //  This functions as a mutex so that access to resolvedAccount is only available at appropriate times
 
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
@@ -130,6 +75,8 @@ export class AlSessionInstance
     } else {
         localStorageFallback.removeItem('al_session');
     }
+
+    /* istanbul ignore next */
     AlGlobalizer.expose( 'al.session', {
         state: () => {
             return this.sessionData;
@@ -188,9 +135,10 @@ export class AlSessionInstance
   }
 
   /**
-   * Update 'authentication'
-   * Modeled on /aims/v1/authenticate
-   * To be called by AIMS Service
+   * Sets and persists session data and begins account metadata resolution.
+   *
+   * Successful completion of this action triggers an AlSessionStartedEvent so that non-causal elements of an application can respond to
+   * the change of state.
    */
   setAuthentication(proposal: AIMSSessionDescriptor) {
     let validator = new AlSchemaValidator<AIMSSessionDescriptor>();
@@ -220,13 +168,16 @@ export class AlSessionInstance
   }
 
   /**
-   * Set the session's acting account.
+   * Sets the session's acting account.
+   *
+   * Successful completion of this action triggers an AlActingAccountChangedEvent so that non-causal elements of an application can respond to
+   * the change of effective account and entitlements.
    *
    * @param {AIMSAccount} The AIMSAccount object representating the account to focus on.
    *
    * @returns A promise that resolves
    */
-  setActingAccount( account: string|AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
+  public setActingAccount( account: string|AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
 
     if ( ! account ) {
       throw new Error("Usage error: setActingAccount requires an account ID or account descriptor." );
@@ -243,7 +194,7 @@ export class AlSessionInstance
     this.sessionData.acting = account;
     ALClient.defaultAccountId = account.id;
 
-    if ( actingAccountChanged ) {
+    if ( actingAccountChanged || ! this.resolutionGuard.isFulfilled() ) {
       this.resolutionGuard.rescind();
       this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
       this.setStorage();
@@ -274,7 +225,7 @@ export class AlSessionInstance
     }
     if ( this.sessionIsActive && ! wasActive ) {
         this.notifyStream.tap();        //  *always* get notifyStream flowing at this point, so that we can intercept AlBeforeRequestEvents
-        this.notifyStream.trigger( new AlSessionStartedEvent( this.sessionData.authentication.user, this.sessionData.authentication.account, this ) );
+        this.notifyStream.trigger( new AlSessionStartedEvent( this.sessionData.authentication.user, this.sessionData.authentication.account ) );
     }
     return this.isActive();
   }
@@ -283,7 +234,7 @@ export class AlSessionInstance
    * Deactivate Session
    */
   deactivateSession(): boolean {
-    this.sessionData = JSON.parse(JSON.stringify(AlDefaultSessionData));
+    this.sessionData = JSON.parse(JSON.stringify(AlNullSessionDescriptor));
     this.sessionIsActive = false;
     localStorageFallback.removeItem('al_session');
     this.notifyStream.trigger( new AlSessionEndedEvent( this ) );
@@ -429,13 +380,21 @@ export class AlSessionInstance
   }
 
   /**
-   * Convenience method to resolve when authentication status and metadata have been resolved.
+   * Convenience method to wait until authentication status and metadata have been resolved.
    *
    * PLEASE NOTE: that this async function will not resolve until authentication is complete and subscriptions metadata
-   * has been retrieved and collated; in an unauthenticated context, it will never resolve.
+   * has been retrieved and collated; in an unauthenticated context, it will never resolve!
    */
   public async resolved(): Promise<void> {
     return this.resolutionGuard.then( () => {} );
+  }
+
+  /**
+   * Convenience method to retrieve the entitlements for the primary account.
+   * See caveats for `ALSession.authenticated` method, which also apply to this method.
+   */
+  public async getPrimaryEntitlements():Promise<AlEntitlementCollection> {
+    return this.resolutionGuard.then( () => this.primaryEntitlements );
   }
 
   /**
@@ -473,27 +432,37 @@ export class AlSessionInstance
    */
   protected async resolveActingAccount( account:AIMSAccount ) {
     const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null );
-    const dataSources:Promise<any>[] = [
+    let dataSources:Promise<any>[] = [
         AIMSClient.getAccountDetails( account.id ),
         AIMSClient.getManagedAccounts( this.getPrimaryAccountId() ),
-        SubscriptionsClient.getEntitlements( account.id )
-    ];
+        SubscriptionsClient.getEntitlements( this.getPrimaryAccountId() ) ];
+
+    if ( account.id !== this.getPrimaryAccountId() ) {
+      dataSources.push( SubscriptionsClient.getEntitlements( account.id ) );
+    }
 
     return Promise.all( dataSources )
             .then(  dataObjects => {
-                const account:AIMSAccount                   =   dataObjects[0];
-                const managedAccounts:AIMSAccount[]         =   dataObjects[1];
-                const entitlements:AlEntitlementCollection  =   dataObjects[2];
+                      const account:AIMSAccount                           =   dataObjects[0];
+                      const managedAccounts:AIMSAccount[]                 =   dataObjects[1];
+                      const entitlements:AlEntitlementCollection          =   dataObjects[2];
+                      let actingEntitlements:AlEntitlementCollection;
+                      if ( dataObjects.length > 3 ) {
+                        actingEntitlements                                =   dataObjects[3];
+                      } else {
+                        actingEntitlements                                =   entitlements;
+                      }
 
-                resolved.actingAccount      =   account;
-                resolved.managedAccounts    =   managedAccounts;
-                resolved.entitlements       =   entitlements;
-                this.resolvedAccount        =   resolved;
-                this.resolutionGuard.resolve(true);
-                this.notifyStream.trigger( resolved );
+                      resolved.actingAccount      =   account;
+                      resolved.managedAccounts    =   managedAccounts;
+                      this.primaryEntitlements    =   entitlements;
+                      resolved.entitlements       =   actingEntitlements;
+                      this.resolvedAccount        =   resolved;
+                      this.resolutionGuard.resolve(true);
+                      this.notifyStream.trigger( resolved );
 
-                return resolved;
-            } );
+                      return resolved;
+                    } );
   }
 
 

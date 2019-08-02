@@ -143,12 +143,6 @@ export class AlConduitClient
                 const payload = Object.assign({ type: methodName, requestId: requestId }, data);
                 const targetOrigin = ALClient.resolveLocation(AlLocation.AccountsUI);
                 this.conduitWindow.postMessage(payload, targetOrigin);
-                AlStopwatch.once(   () => {
-                                        if (this.requests.hasOwnProperty(requestId)) {
-                                            console.warn(`WARNING: conduit request ${requestId} (${methodName}) timed out (10s)!`);
-                                        }
-                                    },
-                                    10000 );
             } );
         } );
     }
