@@ -205,6 +205,23 @@ export class AlSessionInstance
   }
 
   /**
+   * Sets the 'active' datacenter.  This provides a default residency and API stack to interact with.
+   */
+  public setActiveDatacenter( insightLocationId:string ) {
+    if ( ! this.sessionData.boundLocationId || insightLocationId !== this.sessionData.boundLocationId ) {
+      this.sessionData.boundLocationId = insightLocationId;
+      this.setStorage();
+    }
+  }
+
+  /**
+   * Retrieves the 'active' datacenter.
+   */
+  public getActiveDatacenter() {
+    return this.sessionData.boundLocationId;
+  }
+
+  /**
    * Convenience function to set token and expiry values
    * Modelled on /aims/v1/:account_id/account
    * To be called by AIMS Service
