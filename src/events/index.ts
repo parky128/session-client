@@ -1,4 +1,4 @@
-import { AlTriggeredEvent } from '@al/haversack/triggers';
+import { AlTriggeredEvent } from '@al/common';
 import { AIMSUser, AIMSAccount } from '@al/client';
 import { AlEntitlementCollection } from '@al/subscriptions';
 import { AlSessionInstance } from '../al-session';

@@ -9,11 +9,13 @@
  */
 
 import localStorageFallback from 'local-storage-fallback';
-import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
-import { AlGlobalizer, AlStopwatch } from '@al/haversack/utility';
-import { AlBehaviorPromise } from '@al/haversack/promises';
-import { AlSchemaValidator } from '@al/haversack/schema-validator';
-import { AlResponseValidationError } from '@al/haversack/errors';
+import {
+    AlBehaviorPromise,
+    AlGlobalizer, AlStopwatch,
+    AlTriggerStream, AlTriggeredEvent,
+    AlResponseValidationError
+} from '@al/common';
+import { AlSchemaValidator } from '@al/common/schema-validator';
 import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent, AlActingAccountResolvedEvent } from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */

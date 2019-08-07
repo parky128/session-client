@@ -1,7 +1,7 @@
 import { AlConduitClient } from '../src/utilities';
-import { AlLocatorService, AlLocation } from '@al/haversack/locator';
+import { AlLocatorService, AlLocation } from '@al/common/locator';
 import { ALClient } from '@al/client';
-import { AlStopwatch } from '@al/haversack/utility';
+import { AlStopwatch } from '@al/common';
 import { exampleSession } from './mocks/session-data.mocks';
 import { expect } from 'chai';
 import { describe, before } from 'mocha';
