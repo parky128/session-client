@@ -1,6 +1,5 @@
-import { AlStopwatch } from '@al/haversack/utility';
-import { AlBehaviorPromise } from '@al/haversack/promises';
-import { AlLocation, AlLocatorService } from '@al/haversack/locator';
+import { AlStopwatch, AlBehaviorPromise } from '@al/common';
+import { AlLocation, AlLocatorService } from '@al/common/locator';
 import { ALClient } from '@al/client';
 import { AIMSSessionDescriptor } from '@al/aims';
 

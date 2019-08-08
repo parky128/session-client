@@ -9,11 +9,13 @@
  */
 
 import localStorageFallback from 'local-storage-fallback';
-import { AlTriggerStream, AlTriggeredEvent } from '@al/haversack/triggers';
-import { AlGlobalizer, AlStopwatch } from '@al/haversack/utility';
-import { AlBehaviorPromise } from '@al/haversack/promises';
-import { AlSchemaValidator } from '@al/haversack/schema-validator';
-import { AlResponseValidationError } from '@al/haversack/errors';
+import {
+    AlBehaviorPromise,
+    AlGlobalizer, AlStopwatch,
+    AlTriggerStream, AlTriggeredEvent,
+    AlResponseValidationError
+} from '@al/common';
+import { AlSchemaValidator } from '@al/common/schema-validator';
 import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent, AlActingAccountResolvedEvent } from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
@@ -205,6 +207,23 @@ export class AlSessionInstance
   }
 
   /**
+   * Sets the 'active' datacenter.  This provides a default residency and API stack to interact with.
+   */
+  public setActiveDatacenter( insightLocationId:string ) {
+    if ( ! this.sessionData.boundLocationId || insightLocationId !== this.sessionData.boundLocationId ) {
+      this.sessionData.boundLocationId = insightLocationId;
+      this.setStorage();
+    }
+  }
+
+  /**
+   * Retrieves the 'active' datacenter.
+   */
+  public getActiveDatacenter() {
+    return this.sessionData.boundLocationId;
+  }
+
+  /**
    * Convenience function to set token and expiry values
    * Modelled on /aims/v1/:account_id/account
    * To be called by AIMS Service
@@ -278,66 +297,10 @@ export class AlSessionInstance
   }
 
   /**
-   * Get the ID of the acting account
+   * Get the ID of the acting account (account the user is currently working in)
    */
   getActingAccountId(): string {
       return this.isActive() ? this.sessionData.acting.id : null;
-  }
-
-  /**
-   * Get the acting account
-   */
-  getActingAccount(): AIMSAccount {
-    return this.sessionData.acting;
-  }
-
-  /**
-   * Get Token
-   */
-  getToken(): string {
-    return this.sessionData.authentication.token;
-  }
-
-  /**
-   * Get Token Expiry
-   */
-  getTokenExpiry(): number {
-    return this.sessionData.authentication.token_expiration;
-  }
-
-  /**
-   * Get User ID
-   */
-  getUserID(): string {
-    return this.sessionData.authentication.user.id;
-  }
-
-  /**
-   * Get User Name
-   */
-  getUserName(): string {
-    return this.sessionData.authentication.user.name;
-  }
-
-  /**
-   * Get User Email
-   */
-  getUserEmail(): string {
-    return this.sessionData.authentication.user.email;
-  }
-
-  /**
-   * Get Account ID - For which the User belongs to
-   */
-  getUserAccountID(): string {
-    return this.sessionData.authentication.account.id;
-  }
-
-  /**
-   * Get acting Account ID - (account the user is currently working in)
-   */
-  getActingAccountID(): string {
-    return this.sessionData.acting.id;
   }
 
   /**
@@ -362,6 +325,73 @@ export class AlSessionInstance
   }
 
   /**
+   * Get the acting account entity in its entirety
+   */
+  getActingAccount(): AIMSAccount {
+    return this.sessionData.acting;
+  }
+
+  /**
+   * Get Token
+   */
+  getToken(): string {
+    return this.sessionData.authentication.token;
+  }
+
+  /**
+   * Get Token Expiry
+   */
+  getTokenExpiry(): number {
+    return this.sessionData.authentication.token_expiration;
+  }
+
+  /**
+   * Get User ID
+   */
+  getUserId(): string {
+    return this.sessionData.authentication.user.id;
+  }
+
+  /**
+   * Get User Name
+   */
+  getUserName(): string {
+    return this.sessionData.authentication.user.name;
+  }
+
+  /**
+   * Get User Email
+   */
+  getUserEmail(): string {
+    return this.sessionData.authentication.user.email;
+  }
+
+  /**
+   * @deprecated
+   * Alias for getActingAccountId
+   */
+  getActingAccountID(): string {
+      return this.getActingAccountId();
+  }
+
+  /*
+   * @deprecated
+   * Alias for `getUserId`
+   */
+  getUserID(): string {
+    return this.sessionData.authentication.user.id;
+  }
+
+  /**
+   * @deprecated
+   * Please use `getPrimaryAccountId()` instead
+   */
+  getUserAccountID(): string {
+    return this.sessionData.authentication.account.id;
+  }
+
+  /**
+   * @deprecated
    * Get Accessible Locations for the users account
    */
   getUserAccessibleLocations(): string[] {

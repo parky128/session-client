@@ -260,6 +260,7 @@ describe('AlSessionDetector', () => {
                     sessionDetector.onDetectionFail( () => {} );      //  kill the promise
                     getSessionStub.restore();
                     auth0AuthStub.restore();
+                    expect( true ).to.equal( true );
                     done();
                 }, error => {
                     expect( "Shouldn't get a promise rejection!").to.equal( false );

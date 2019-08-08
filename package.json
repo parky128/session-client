@@ -1,6 +1,6 @@
 {
   "name": "@al/session",
-  "version": "1.0.0-rc.9",
+  "version": "1.0.0",
   "license": "MIT",
   "description": "A client for maintaining Alert Logic session data",
   "author": {
@@ -62,10 +62,10 @@
     "webpack-node-externals": "^1.7.2"
   },
   "dependencies": {
-    "@al/aims": "^1.0.0-rc.4",
-    "@al/client": "^1.0.0-rc.8",
-    "@al/haversack": "^1.0.0-rc.3",
-    "@al/subscriptions": "^1.0.0-rc.4",
+    "@al/aims": "^1.0.0",
+    "@al/client": "^1.0.0",
+    "@al/common": "^1.0.0",
+    "@al/subscriptions": "^1.0.0",
     "auth0-js": "^9.11.1",
     "local-storage-fallback": "^4.1.1",
     "qs": "^6.7.0"

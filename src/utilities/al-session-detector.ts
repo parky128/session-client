@@ -6,8 +6,8 @@
  */
 
 import { WebAuth } from 'auth0-js';
-import { AlLocatorService, AlLocation } from '@al/haversack/locator';
-import { AlBehaviorPromise } from '@al/haversack/promises';
+import { AlLocatorService, AlLocation } from '@al/common/locator';
+import { AlBehaviorPromise } from '@al/common';
 import { ALSession } from '../index';
 import { ALClient } from '@al/client';
 import { AIMSClient, AIMSSessionDescriptor, AIMSAuthentication, AIMSUser, AIMSAccount } from '@al/aims';
