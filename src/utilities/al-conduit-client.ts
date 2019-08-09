@@ -71,6 +71,11 @@ export class AlConduitClient
             .then( rawResponse => rawResponse.setting );
     }
 
+    public deleteGlobalSetting(settingKey: string): Promise<boolean> {
+        return this.request('conduit.deleteGlobalSetting', { setting_key: settingKey })
+                    .then( rawResponse => rawResponse.result );
+    }
+
     public onReceiveMessage = (event: any):void => {
         if ( ! event.data
                 || typeof (event.data.type) !== 'string'
@@ -95,6 +100,7 @@ export class AlConduitClient
             case 'conduit.deleteSession':
             case 'conduit.getGlobalSetting':
             case 'conduit.setGlobalSetting':
+            case 'conduit.deleteGlobalSetting':
                 return this.onDispatchReply(event);
             default:
                 console.warn('O3ConduitService: Ignoring unrecognized message type: %s', event.data.type, event);
