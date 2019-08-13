@@ -117,7 +117,7 @@ export class AlConduitClient
     public onDispatchReply(event: any): void {
         const requestId: string = event.data.requestId;
         if (!this.requests.hasOwnProperty(requestId)) {
-            console.warn(`Warning: conduit message with request ID ${requestId} received, but no matching response observable was found.`);
+            //  This is not an error if there are multiple conduit clients running; ignore
             return;
         }
 

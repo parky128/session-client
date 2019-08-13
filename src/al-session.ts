@@ -453,7 +453,7 @@ export class AlSessionInstance
     const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null );
     let dataSources:Promise<any>[] = [
         AIMSClient.getAccountDetails( account.id ),
-        AIMSClient.getManagedAccounts( this.getPrimaryAccountId() ),
+        AIMSClient.getManagedAccounts( this.getPrimaryAccountId(), { active: "true" } ),
         SubscriptionsClient.getEntitlements( this.getPrimaryAccountId() ) ];
 
     if ( account.id !== this.getPrimaryAccountId() ) {
