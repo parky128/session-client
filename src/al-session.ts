@@ -190,11 +190,15 @@ export class AlSessionInstance
       } );
     }
 
-    const previousAccount = this.sessionData.acting;
-    const actingAccountChanged = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
+    const previousAccount               = this.sessionData.acting;
+    const actingAccountChanged          = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
 
-    this.sessionData.acting = account;
-    ALClient.defaultAccountId = account.id;
+    this.sessionData.acting             = account;
+    this.sessionData.boundLocationId    = account.accessible_locations.indexOf( this.sessionData.boundLocationId ) !== -1
+                                            ? this.sessionData.boundLocationId
+                                            : account.default_location;
+
+    ALClient.defaultAccountId           = account.id;
 
     if ( actingAccountChanged || ! this.resolutionGuard.isFulfilled() ) {
       this.resolutionGuard.rescind();
@@ -217,10 +221,22 @@ export class AlSessionInstance
   }
 
   /**
-   * Retrieves the 'active' datacenter.
+   * Retrieves the 'active' datacenter, falling back on the acting account's or primary account's default_location
+   * as necessary.
    */
   public getActiveDatacenter() {
-    return this.sessionData.boundLocationId;
+    if ( this.isActive() ) {
+      if ( this.sessionData.boundLocationId ) {
+        return this.sessionData.boundLocationId;
+      }
+      if ( this.sessionData.acting ) {
+        return this.sessionData.acting.default_location;
+      }
+      if ( this.sessionData.authentication && this.sessionData.authentication.account ) {
+        return this.sessionData.authentication.account.default_location;
+      }
+    }
+    return null;
   }
 
   /**

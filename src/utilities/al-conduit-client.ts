@@ -1,39 +1,44 @@
 import { AlStopwatch, AlBehaviorPromise } from '@al/common';
-import { AlLocation, AlLocatorService } from '@al/common/locator';
+import { AlLocation, AlLocatorService, AlLocationContext } from '@al/common/locator';
 import { ALClient } from '@al/client';
 import { AIMSSessionDescriptor } from '@al/aims';
 
 export class AlConduitClient
 {
-    protected conduitUri:string;
-    protected conduitWindow:Window;
-    protected conduitOrigin:string;
-    protected requests: { [requestId: string]: any } = {};
-    protected requestIndex = 0;
-    protected ready = new AlBehaviorPromise<boolean>();
+    protected static conduitUri:string;
+    protected static conduitWindow:Window;
+    protected static conduitOrigin:string;
+    protected static refCount:number = 0;
+    protected static ready = new AlBehaviorPromise<boolean>();
+    protected static requests: { [requestId: string]: any } = {};
+    protected static requestIndex = 0;
 
     constructor() {
     }
 
     public start( targetDocument:Document = document ) {
-        this.conduitUri = ALClient.resolveLocation( AlLocation.AccountsUI, '/conduit.html' );
-        document.body.append( this.render() );
-        AlStopwatch.once(this.validateReadiness, 5000);
+        if ( AlConduitClient.refCount < 1 ) {
+            document.body.append( this.render() );
+            AlStopwatch.once(this.validateReadiness, 5000);
+        }
+        AlConduitClient.refCount++;
     }
 
     public render():DocumentFragment {
-        let fragment = document.createDocumentFragment();
-        let container = document.createElement( "div" );
+        AlConduitClient.conduitUri = ALClient.resolveLocation( AlLocation.AccountsUI, '/conduit.html', { residency: 'US' } );
+        const fragment = document.createDocumentFragment();
+        const container = document.createElement( "div" );
         window.addEventListener( "message", this.onReceiveMessage, false );
         fragment.appendChild( container );
         container.innerHTML = `
             <div class="conduit-container">
-                <iframe frameborder="0" src="${this.conduitUri}" style="width:1px;height:1px;"></iframe>
+                <iframe frameborder="0" src="${AlConduitClient.conduitUri}" style="width:1px;height:1px;"></iframe>
             </div>`.trim();
         return fragment;
     }
 
     public stop() {
+        AlConduitClient.refCount--;
     }
 
     /**
@@ -61,21 +66,33 @@ export class AlConduitClient
                     .then( rawResponse => true );
     }
 
+    /**
+     * Retrieves a global setting from conduit's local storage
+     */
     public getGlobalSetting(settingKey: string): Promise<any> {
         return this.request("conduit.getGlobalSetting", { setting_key: settingKey })
             .then( rawResponse => rawResponse.setting );
     }
 
+    /**
+     * Sets a global setting to conduit's local storage
+     */
     public setGlobalSetting(key: string, data: any): Promise<any> {
         return this.request("conduit.setGlobalSetting", { setting_key: key, setting_data: data })
             .then( rawResponse => rawResponse.setting );
     }
 
+    /**
+     * Deletes a global setting from conduit's local storage
+     */
     public deleteGlobalSetting(settingKey: string): Promise<boolean> {
         return this.request('conduit.deleteGlobalSetting', { setting_key: settingKey })
                     .then( rawResponse => rawResponse.result );
     }
 
+    /**
+     * Receives a message from conduit, and dispatches it to the correct handler.
+     */
     public onReceiveMessage = (event: any):void => {
         if ( ! event.data
                 || typeof (event.data.type) !== 'string'
@@ -109,20 +126,20 @@ export class AlConduitClient
     }
 
     public onConduitReady(event: any ): void {
-        this.conduitWindow = event.source;
-        this.conduitOrigin = event.origin;
-        this.ready.resolve( true );
+        AlConduitClient.conduitWindow = event.source;
+        AlConduitClient.conduitOrigin = event.origin;
+        AlConduitClient.ready.resolve( true );
     }
 
     public onDispatchReply(event: any): void {
         const requestId: string = event.data.requestId;
-        if (!this.requests.hasOwnProperty(requestId)) {
-            //  This is not an error if there are multiple conduit clients running; ignore
+        if (!AlConduitClient.requests.hasOwnProperty(requestId)) {
+            console.warn(`Warning: received a conduit response to an unknown request with ID '${requestId}'; multiple clients running?` );
             return;
         }
 
-        this.requests[requestId]( event.data );
-        delete this.requests[requestId];
+        AlConduitClient.requests[requestId]( event.data );
+        delete AlConduitClient.requests[requestId];
     }
 
     /**
@@ -130,24 +147,24 @@ export class AlConduitClient
      * may help detect problems in production as a fringe benefit.
      */
     protected validateReadiness = () => {
-        if (!this.conduitWindow && !this.conduitOrigin) {
+        if (!AlConduitClient.conduitWindow && !AlConduitClient.conduitOrigin) {
             console.warn('Conduit Warning: no conduit.ready message was received from the console.account conduit application.  This may result in degradation or unavailability of authentication features in this application.');
         }
     }
 
     protected request( methodName: string, data: any = {} ): Promise<any> {
         return new Promise<any>( ( resolve, reject ) => {
-            this.ready.then( () => {
-                const requestId = `conduit-request-${++this.requestIndex}-${Math.floor(Math.random() * 1000)}`;
+            AlConduitClient.ready.then( () => {
+                const requestId = `conduit-request-${++AlConduitClient.requestIndex}-${Math.floor(Math.random() * 1000)}`;
 
                 /**
                  * Requests can be queued at any time in the application's lifespan, even before the conduit iframe has been created or communications
                  * have been established.  However, no actually message will be broadcast until the initial handshake has occurred.
                  */
-                this.requests[requestId] = resolve;
+                AlConduitClient.requests[requestId] = resolve;
                 const payload = Object.assign({ type: methodName, requestId: requestId }, data);
                 const targetOrigin = ALClient.resolveLocation(AlLocation.AccountsUI);
-                this.conduitWindow.postMessage(payload, targetOrigin);
+                AlConduitClient.conduitWindow.postMessage(payload, targetOrigin);
             } );
         } );
     }

@@ -41,10 +41,10 @@ describe('AlConduitClient', () => {
     describe("after initialization", () => {
 
         it( "should have expected initial state", () => {
-            expect( conduitClient['conduitUri'] ).to.equal( undefined );
-            expect( conduitClient['conduitWindow'] ).to.equal( undefined );
-            expect( conduitClient['conduitOrigin'] ).to.equal( undefined );
-            expect( conduitClient['requestIndex'] ).to.equal( 0 );
+            expect( AlConduitClient['conduitUri'] ).to.equal( undefined );
+            expect( AlConduitClient['conduitWindow'] ).to.equal( undefined );
+            expect( AlConduitClient['conduitOrigin'] ).to.equal( undefined );
+            expect( AlConduitClient['requestIndex'] ).to.equal( 0 );
         } );
     } );
 
@@ -59,7 +59,7 @@ describe('AlConduitClient', () => {
         let document = new Document();
         it( "should render the document fragment", () => {
             conduitClient.start( document );
-            expect( conduitClient['conduitUri'] ).to.equal( 'https://console.account.alertlogic.com/conduit.html' );        //  AlLocatorService uses production settings by default
+            expect( AlConduitClient['conduitUri'] ).to.equal( 'https://console.account.alertlogic.com/conduit.html' );        //  AlLocatorService uses production settings by default
             expect( stopwatchStub.callCount ).to.equal( 1 );
             expect( stopwatchStub.args[0][0] ).to.equal( conduitClient['validateReadiness'] );
             expect( stopwatchStub.args[0][1] ).to.equal( 5000 );
@@ -198,15 +198,15 @@ describe('AlConduitClient', () => {
 
             conduitClient.onConduitReady( event );
 
-            expect( conduitClient['conduitOrigin'] ).to.equal( "https://my-arbitrary-origin.com" );
-            expect( conduitClient['conduitWindow'] ).to.equal( event.source );
+            expect( AlConduitClient['conduitOrigin'] ).to.equal( "https://my-arbitrary-origin.com" );
+            expect( AlConduitClient['conduitWindow'] ).to.equal( event.source );
         } );
     } );
 
     describe( ".validateReadiness()", () => {
         it( "should warn if conduit isn't ready", () => {
-            conduitClient['conduitWindow'] = null;
-            conduitClient['conduitOrigin'] = null;
+            AlConduitClient['conduitWindow'] = null;
+            AlConduitClient['conduitOrigin'] = null;
             conduitClient['validateReadiness']();
             expect( warnStub.callCount ).to.equal( 1 );
         } );
@@ -224,7 +224,7 @@ describe('AlConduitClient', () => {
         } );
 
         it( "should call through and clear existing request callbacks", () => {
-            conduitClient['requests']['fake-one'] = () => { calledThrough = true; };
+            AlConduitClient['requests']['fake-one'] = () => { calledThrough = true; };
             let event = generateMockRequest( 'conduit.getSession', null, 'fake-one' );
             conduitClient.onDispatchReply( event );
             expect( warnStub.callCount ).to.equal( 0 );
@@ -249,8 +249,8 @@ describe('AlConduitClient', () => {
             };
 
             conduitClient.onReceiveMessage( readyMessage );
-            expect( conduitClient['conduitWindow'] ).to.equal( readyMessage.source );
-            expect( conduitClient['conduitOrigin'] ).to.equal( readyMessage.origin );
+            expect( AlConduitClient['conduitWindow'] ).to.equal( readyMessage.source );
+            expect( AlConduitClient['conduitOrigin'] ).to.equal( readyMessage.origin );
             conduitClient['request']( "test.message", { from: "Kevin", to: "The World", message: "Get thee hence, satan." } )
                     .then( ( response ) => {
                         expect( readyMessage.source.postMessage.callCount ).to.equal( 1 );
@@ -261,14 +261,14 @@ describe('AlConduitClient', () => {
 
             //  This timer simulates the response coming from another window
             setTimeout( () => {
-                expect( Object.keys( conduitClient['requests'] ).length ).to.equal( 1 );
-                let requestId = Object.keys( conduitClient['requests'] )[0];
+                expect( Object.keys( AlConduitClient['requests'] ).length ).to.equal( 1 );
+                let requestId = Object.keys( AlConduitClient['requests'] )[0];
                 let responseData = {
                     type: 'test.message',
                     requestId: requestId,
                     answer: "NO"
                 };
-                conduitClient['requests'][requestId]( responseData );
+                AlConduitClient['requests'][requestId]( responseData );
             }, 100 );
         } );
     } );
