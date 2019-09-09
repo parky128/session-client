@@ -1,10 +1,10 @@
 import { AlStopwatch, AlBehaviorPromise } from '@al/common';
 import { AlLocation, AlLocatorService, AlLocationContext } from '@al/common/locator';
-import { ALClient } from '@al/client';
 import { AIMSSessionDescriptor } from '@al/aims';
 
 export class AlConduitClient
 {
+    protected static document:Document;
     protected static conduitUri:string;
     protected static conduitWindow:Window;
     protected static conduitOrigin:string;
@@ -18,27 +18,35 @@ export class AlConduitClient
 
     public start( targetDocument:Document = document ) {
         if ( AlConduitClient.refCount < 1 ) {
-            document.body.append( this.render() );
+            AlConduitClient.document = targetDocument;
+            AlConduitClient.document.body.append( this.render() );
             AlStopwatch.once(this.validateReadiness, 5000);
         }
         AlConduitClient.refCount++;
     }
 
     public render():DocumentFragment {
-        AlConduitClient.conduitUri = ALClient.resolveLocation( AlLocation.AccountsUI, '/conduit.html', { residency: 'US' } );
+        AlConduitClient.conduitUri = AlLocatorService.resolveURL( AlLocation.AccountsUI, '/conduit.html', { residency: 'US' } );
         const fragment = document.createDocumentFragment();
         const container = document.createElement( "div" );
+        container.setAttribute("id", "conduitClient" );
+        container.setAttribute("class", "conduit-container" );
         window.addEventListener( "message", this.onReceiveMessage, false );
         fragment.appendChild( container );
-        container.innerHTML = `
-            <div class="conduit-container">
-                <iframe frameborder="0" src="${AlConduitClient.conduitUri}" style="width:1px;height:1px;"></iframe>
-            </div>`.trim();
+        container.innerHTML = `<iframe frameborder="0" src="${AlConduitClient.conduitUri}" style="width:1px;height:1px;"></iframe>`;
         return fragment;
     }
 
     public stop() {
-        AlConduitClient.refCount--;
+        if ( AlConduitClient.refCount > 0 ) {
+            AlConduitClient.refCount--;
+        }
+        if ( AlConduitClient.refCount === 0 && AlConduitClient.document ) {
+            let container = AlConduitClient.document.getElementById( "conduitClient" );
+            if ( container ) {
+                AlConduitClient.document.body.removeChild( container );
+            }
+        }
     }
 
     /**
@@ -163,7 +171,7 @@ export class AlConduitClient
                  */
                 AlConduitClient.requests[requestId] = resolve;
                 const payload = Object.assign({ type: methodName, requestId: requestId }, data);
-                const targetOrigin = ALClient.resolveLocation(AlLocation.AccountsUI);
+                const targetOrigin = AlLocatorService.resolveURL(AlLocation.AccountsUI, null, { residency: 'US' } );
                 AlConduitClient.conduitWindow.postMessage(payload, targetOrigin);
             } );
         } );

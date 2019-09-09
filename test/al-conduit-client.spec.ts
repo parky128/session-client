@@ -1,5 +1,5 @@
 import { AlConduitClient } from '../src/utilities';
-import { AlLocatorService, AlLocation } from '@al/common/locator';
+import { AlLocatorService, AlLocation, AlLocationContext } from '@al/common/locator';
 import { ALClient } from '@al/client';
 import { AlStopwatch } from '@al/common';
 import { exampleSession } from './mocks/session-data.mocks';
@@ -11,6 +11,7 @@ describe('AlConduitClient', () => {
 
     let conduitClient:AlConduitClient;
     let stopwatchStub, warnStub;
+    let originalContext:AlLocationContext;
 
     let generateMockRequest = ( requestType:string, data:any = null, requestId:string = null ) => {
         let event = {
@@ -31,11 +32,14 @@ describe('AlConduitClient', () => {
         conduitClient = new AlConduitClient();
         stopwatchStub = sinon.stub( AlStopwatch, 'once' );
         warnStub = sinon.stub( console, 'warn' );
+        originalContext = AlLocatorService.getContext();
+        AlLocatorService.setActingUri( "https://console.search.alertlogic.co.uk" );
     } );
 
     afterEach( () => {
         stopwatchStub.restore();
         warnStub.restore();
+        AlLocatorService.setContext( originalContext );
     } );
 
     describe("after initialization", () => {
@@ -56,13 +60,18 @@ describe('AlConduitClient', () => {
     } );
 
     describe(".start()", () => {
-        let document = new Document();
         it( "should render the document fragment", () => {
-            conduitClient.start( document );
+            let d = document.implementation.createHTMLDocument("Fake Document" );
+            conduitClient.start( d );
             expect( AlConduitClient['conduitUri'] ).to.equal( 'https://console.account.alertlogic.com/conduit.html' );        //  AlLocatorService uses production settings by default
+
+            expect( AlConduitClient['refCount'] ).to.equal( 1 );
             expect( stopwatchStub.callCount ).to.equal( 1 );
             expect( stopwatchStub.args[0][0] ).to.equal( conduitClient['validateReadiness'] );
             expect( stopwatchStub.args[0][1] ).to.equal( 5000 );
+            conduitClient.stop();
+
+            expect( AlConduitClient['refCount'] ).to.equal( 0 );
         } );
     } );
 
@@ -232,11 +241,12 @@ describe('AlConduitClient', () => {
         } );
     } );
 
+    /**
+     * This test simulates both sides of a two-party message exchange, and includes validation of the cross-residency behavior of conduit -- specifically, all clients,
+     * regardless of their acting residency zone, must interact with the US console.account domain.  This allows authentication data to be shared across residencies.
+     */
     describe( ".request()", () => {
         it( "should wait for readiness, resolve account app, and post message", (done) => {
-            /**
-             * This rather beefy test simulates both sides of a two-party message exchange.
-             */
             let readyMessage = {
                 source: {
                     postMessage: sinon.stub()
@@ -248,12 +258,18 @@ describe('AlConduitClient', () => {
                 }
             };
 
+            let locatorContext = AlLocatorService.getContext();
+            expect( locatorContext.residency ).to.equal( "EMEA" );
+
             conduitClient.onReceiveMessage( readyMessage );
             expect( AlConduitClient['conduitWindow'] ).to.equal( readyMessage.source );
             expect( AlConduitClient['conduitOrigin'] ).to.equal( readyMessage.origin );
             conduitClient['request']( "test.message", { from: "Kevin", to: "The World", message: "Get thee hence, satan." } )
                     .then( ( response ) => {
                         expect( readyMessage.source.postMessage.callCount ).to.equal( 1 );
+                        expect( readyMessage.source.postMessage.args[0][0] ).to.be.an( 'object' );
+                        expect( readyMessage.source.postMessage.args[0][1] ).to.be.a( 'string' );
+                        expect( readyMessage.source.postMessage.args[0][1] ).to.equal( "https://console.account.alertlogic.com" );
                         expect( response.answer ).to.be.a('string' );
                         expect( response.answer ).to.equal( 'NO' );
                         done();
@@ -272,5 +288,4 @@ describe('AlConduitClient', () => {
             }, 100 );
         } );
     } );
-
 } );
