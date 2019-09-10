@@ -19,7 +19,9 @@ export class AlConduitClient
     public start( targetDocument:Document = document ) {
         if ( AlConduitClient.refCount < 1 ) {
             AlConduitClient.document = targetDocument;
-            AlConduitClient.document.body.append( this.render() );
+            if ( targetDocument && targetDocument.body && typeof( targetDocument.body.appendChild ) === 'function' ) {
+                AlConduitClient.document.body.appendChild( this.render() );
+            }
             AlStopwatch.once(this.validateReadiness, 5000);
         }
         AlConduitClient.refCount++;
