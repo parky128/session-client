@@ -51,3 +51,16 @@ export class AlActingAccountResolvedEvent extends AlTriggeredEvent
         super( "AlActingAccountResolved" );
     }
 }
+
+/**
+ * AlActiveDatacenterChangedEvent is broadcast by an AlSessionInstance whenever the active datacenter has been changed.
+ */
+export class AlActiveDatacenterChangedEvent extends AlTriggeredEvent
+{
+    constructor( public insightLocationId:string,
+                 public residency:string,
+                 public metadata:unknown ) {
+        super("AlActiveDatacenterChanged" );
+        console.log(`Notice: active datacenter changed to ${insightLocationId}/${residency}` );
+    }
+}

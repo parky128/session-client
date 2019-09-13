@@ -11,6 +11,7 @@ export class AlConduitClient
     protected static refCount:number = 0;
     protected static ready = new AlBehaviorPromise<boolean>();
     protected static requests: { [requestId: string]: any } = {};
+    protected static externalSessions: { [locationId:string]:{promise?:Promise<void>,resolver:any} } = {};
     protected static requestIndex = 0;
 
     constructor() {
@@ -49,6 +50,29 @@ export class AlConduitClient
                 AlConduitClient.document.body.removeChild( container );
             }
         }
+    }
+
+    /**
+     * Waits for a session with an external resource to be established.
+     *
+     * @param {string} insightLocationId The external location ID.  If unspecified, AlLocatorService's context will be used by default.
+     * @returns {Promise} A promise that resolves once the external resource's session has been established.
+     *
+     * Please note that attempting to await an unknown or gibberishy location will return a promise that never resolves.
+     */
+    public awaitExternalSession( insightLocationId:string = null ):Promise<void> {
+        let targetLocationId = insightLocationId || AlLocatorService.getContext().insightLocationId;
+        if ( ! AlConduitClient.externalSessions[targetLocationId] ) {
+            let listener = {
+                promise: null,
+                resolver: null
+            };
+            listener.promise = new Promise<void>( ( resolve, reject ) => {
+                listener.resolver = resolve;
+            } );
+            AlConduitClient.externalSessions[targetLocationId] = listener;
+        }
+        return AlConduitClient.externalSessions[targetLocationId].promise;
     }
 
     /**
@@ -114,8 +138,9 @@ export class AlConduitClient
         }
 
         const originNode = AlLocatorService.getNodeByURI(event.origin);
-        if ( ! originNode || originNode.locTypeId !== AlLocation.AccountsUI ) {
-            //  Ignore any events that don't originate from a console.account domain
+        const originWhitelist:string[] = [ AlLocation.AccountsUI, AlLocation.LegacyUI ];
+        if ( ! originNode || ! originWhitelist.includes( originNode.locTypeId ) ) {
+            //  Ignore any events that don't originate from a whitelisted domain (currently, console.account.* or any defender stack)
             return;
         }
 
@@ -129,6 +154,8 @@ export class AlConduitClient
             case 'conduit.setGlobalSetting':
             case 'conduit.deleteGlobalSetting':
                 return this.onDispatchReply(event);
+            case "conduit.externalSessionReady":
+                return this.onExternalSessionEstablished(event);
             default:
                 console.warn('O3ConduitService: Ignoring unrecognized message type: %s', event.data.type, event);
                 break;
@@ -150,6 +177,24 @@ export class AlConduitClient
 
         AlConduitClient.requests[requestId]( event.data );
         delete AlConduitClient.requests[requestId];
+    }
+
+    /**
+     * Responds to external session ready messages.  If no one is awaiting readiness, it will simply create a resolved promise for that location.
+     */
+    protected onExternalSessionEstablished( event:any ) {
+        if ( typeof( event.data.locationId ) !== 'string' ) {
+            return;
+        }
+        console.log(`Notice: received external session confirmation for location [${event.data.locationId}]` );
+        if ( AlConduitClient.externalSessions.hasOwnProperty( event.data.locationId ) ) {
+            AlConduitClient.externalSessions[event.data.locationId].resolver();
+        } else {
+            AlConduitClient.externalSessions[event.data.locationId] = {
+                promise: Promise.resolve(),
+                resolver: null
+            };
+        }
     }
 
     /**
