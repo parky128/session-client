@@ -16,7 +16,14 @@ import {
     AlResponseValidationError
 } from '@al/common';
 import { AlSchemaValidator } from '@al/common/schema-validator';
-import { AlSessionStartedEvent, AlSessionEndedEvent, AlActingAccountChangedEvent, AlActingAccountResolvedEvent } from './events';
+import { AlLocatorService, AlInsightLocations } from '@al/common/locator';
+import {
+    AlSessionStartedEvent,
+    AlSessionEndedEvent,
+    AlActingAccountChangedEvent,
+    AlActingAccountResolvedEvent,
+    AlActiveDatacenterChangedEvent
+} from './events';
 import {
   AlChangeStamp, AIMSAuthentication, AIMSUser, AIMSAccount, AIMSSessionDescriptor,      /* core AIMS types */
   AlApiClient, AlDefaultClient,
@@ -194,14 +201,20 @@ export class AlSessionInstance
     const actingAccountChanged          = ! this.sessionData.acting || this.sessionData.acting.id !== account.id;
 
     this.sessionData.acting             = account;
-    this.sessionData.boundLocationId    = account.accessible_locations.indexOf( this.sessionData.boundLocationId ) !== -1
+
+    const targetLocationId              = account.accessible_locations.indexOf( this.sessionData.boundLocationId ) !== -1
                                             ? this.sessionData.boundLocationId
                                             : account.default_location;
+    this.setActiveDatacenter( targetLocationId );
 
     ALClient.defaultAccountId           = account.id;
 
     if ( actingAccountChanged || ! this.resolutionGuard.isFulfilled() ) {
       this.resolutionGuard.rescind();
+      AlLocatorService.setContext( {
+          insightLocationId: this.sessionData.boundLocationId,
+          accessible: account.accessible_locations
+      } );
       this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
       this.setStorage();
       return this.resolveActingAccount( account );
@@ -216,7 +229,12 @@ export class AlSessionInstance
   public setActiveDatacenter( insightLocationId:string ) {
     if ( ! this.sessionData.boundLocationId || insightLocationId !== this.sessionData.boundLocationId ) {
       this.sessionData.boundLocationId = insightLocationId;
+      AlLocatorService.setContext( { insightLocationId } );
       this.setStorage();
+      if ( AlInsightLocations.hasOwnProperty( insightLocationId ) ) {
+          const metadata = AlInsightLocations[insightLocationId];
+          this.notifyStream.trigger( new AlActiveDatacenterChangedEvent( insightLocationId, metadata.residency, metadata ) );
+      }
     }
   }
 
