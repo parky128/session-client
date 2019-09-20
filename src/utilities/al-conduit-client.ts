@@ -125,6 +125,19 @@ export class AlConduitClient
     }
 
     /**
+     * Retrieves a global resource.
+     */
+    public getGlobalResource( resourceName:string, ttl:number ): Promise<any> {
+        return this.request('conduit.getGlobalResource', { resourceName, ttl } )
+                            .then( response => {
+                                if ( ! response.resource ) {
+                                    return Promise.reject( response.error || `AlConduitClient failed to retrieve global resource '${resourceName}'` );
+                                }
+                                return response.resource;
+                            } );
+    }
+
+    /**
      * Receives a message from conduit, and dispatches it to the correct handler.
      */
     public onReceiveMessage = (event: any):void => {
@@ -153,6 +166,7 @@ export class AlConduitClient
             case 'conduit.getGlobalSetting':
             case 'conduit.setGlobalSetting':
             case 'conduit.deleteGlobalSetting':
+            case 'conduit.getGlobalResource':
                 return this.onDispatchReply(event);
             case "conduit.externalSessionReady":
                 return this.onExternalSessionEstablished(event);

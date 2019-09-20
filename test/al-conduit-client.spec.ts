@@ -19,7 +19,7 @@ describe('AlConduitClient', () => {
                 type: requestType,
                 requestId: requestId || 'fakeId'
             },
-            origin: AlLocatorService.resolveNodeURI( AlLocatorService.getNode( AlLocation.AccountsUI ) ),
+            origin: AlLocatorService.resolveURL( AlLocation.AccountsUI ),
             source: {}
         };
         if ( data ) {
@@ -178,6 +178,30 @@ describe('AlConduitClient', () => {
 
             dispatchStub.restore();
         } );
+        it( "should handle conduit.getGlobalSetting, conduit.setGlobalSetting, and conduit.deleteGlobalSetting", () => {
+            let dispatchStub = sinon.stub( conduitClient, 'onDispatchReply' );
+
+            let event = generateMockRequest( 'conduit.getGlobalSetting', { setting_key: 'someSetting' } );
+            conduitClient.onReceiveMessage( event );
+
+            event = generateMockRequest( 'conduit.setGlobalSetting', { setting_key: 'someSetting', setting_data: { structured: true, deep: { reference: "maybe?" }, label: "Kevin wuz here" } } );
+            conduitClient.onReceiveMessage( event );
+
+            event = generateMockRequest( 'conduit.deleteGlobalSetting', { setting_key: 'someSetting' } );
+            conduitClient.onReceiveMessage( event );
+
+            expect( dispatchStub.callCount ).to.equal( 3 );
+
+            dispatchStub.restore();
+        } );
+        it( "should handle conduit.getGlobalResource", () => {
+            let dispatchStub = sinon.stub( conduitClient, 'onDispatchReply' );
+
+            let event = generateMockRequest( 'conduit.getGlobalResource', { resourceName: 'navigation/cie-plus2', ttl: 60 } );
+            conduitClient.onReceiveMessage( event );
+
+            dispatchStub.restore();
+        } );
         it( "should warn about invalid message types", () => {
 
             let event = {
@@ -185,7 +209,7 @@ describe('AlConduitClient', () => {
                     type: 'conduit.notARealMethod',
                     requestId: 'fakeId',
                 },
-                origin: AlLocatorService.resolveNodeURI( AlLocatorService.getNode( AlLocation.AccountsUI ) ),
+                origin: AlLocatorService.resolveURL( AlLocation.AccountsUI ),
                 source: {}
             };
             conduitClient.onReceiveMessage( event );
@@ -251,7 +275,7 @@ describe('AlConduitClient', () => {
                 source: {
                     postMessage: sinon.stub()
                 },
-                origin: ALClient.resolveLocation( AlLocation.AccountsUI ),
+                origin: AlLocatorService.resolveURL( AlLocation.AccountsUI ),
                 data: {
                     type: 'conduit.ready',
                     requestId: 'yohoho'
