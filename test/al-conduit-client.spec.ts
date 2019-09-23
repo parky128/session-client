@@ -257,7 +257,7 @@ describe('AlConduitClient', () => {
         } );
 
         it( "should call through and clear existing request callbacks", () => {
-            AlConduitClient['requests']['fake-one'] = () => { calledThrough = true; };
+            AlConduitClient['requests']['fake-one'] = { resolve: () => { calledThrough = true; }, reject: () => {} };
             let event = generateMockRequest( 'conduit.getSession', null, 'fake-one' );
             conduitClient.onDispatchReply( event );
             expect( warnStub.callCount ).to.equal( 0 );
@@ -308,7 +308,7 @@ describe('AlConduitClient', () => {
                     requestId: requestId,
                     answer: "NO"
                 };
-                AlConduitClient['requests'][requestId]( responseData );
+                AlConduitClient['requests'][requestId].resolve( responseData );
             }, 100 );
         } );
     } );

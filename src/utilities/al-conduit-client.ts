@@ -10,7 +10,7 @@ export class AlConduitClient
     protected static conduitOrigin:string;
     protected static refCount:number = 0;
     protected static ready = new AlBehaviorPromise<boolean>();
-    protected static requests: { [requestId: string]: any } = {};
+    protected static requests: { [requestId: string]: { resolve: any, reject: any } } = {};
     protected static externalSessions: { [locationId:string]:{promise?:Promise<void>,resolver:any} } = {};
     protected static requestIndex = 0;
 
@@ -128,7 +128,7 @@ export class AlConduitClient
      * Retrieves a global resource.
      */
     public getGlobalResource( resourceName:string, ttl:number ): Promise<any> {
-        return this.request('conduit.getGlobalResource', { resourceName, ttl } )
+        return this.request('conduit.getGlobalResource', { resourceName, ttl }, 5 )
                             .then( response => {
                                 if ( ! response.resource ) {
                                     return Promise.reject( response.error || `AlConduitClient failed to retrieve global resource '${resourceName}'` );
@@ -189,7 +189,7 @@ export class AlConduitClient
             return;
         }
 
-        AlConduitClient.requests[requestId]( event.data );
+        AlConduitClient.requests[requestId].resolve( event.data );
         delete AlConduitClient.requests[requestId];
     }
 
@@ -221,20 +221,30 @@ export class AlConduitClient
         }
     }
 
-    protected request( methodName: string, data: any = {} ): Promise<any> {
+    protected request( methodName: string, data: any = {}, timeout:number = 0 ): Promise<any> {
+        const requestId = `conduit-request-${++AlConduitClient.requestIndex}-${Math.floor(Math.random() * 1000)}`;
         return new Promise<any>( ( resolve, reject ) => {
+            AlConduitClient.requests[requestId] = { resolve, reject };
             AlConduitClient.ready.then( () => {
-                const requestId = `conduit-request-${++AlConduitClient.requestIndex}-${Math.floor(Math.random() * 1000)}`;
-
                 /**
                  * Requests can be queued at any time in the application's lifespan, even before the conduit iframe has been created or communications
                  * have been established.  However, no actually message will be broadcast until the initial handshake has occurred.
                  */
-                AlConduitClient.requests[requestId] = resolve;
                 const payload = Object.assign({ type: methodName, requestId: requestId }, data);
                 const targetOrigin = AlLocatorService.resolveURL(AlLocation.AccountsUI, null, { residency: 'US' } );
                 AlConduitClient.conduitWindow.postMessage(payload, targetOrigin);
             } );
+            if ( timeout > 0 ) {
+                AlStopwatch.once(   () => {
+                                        console.warn(`Conduit Warning: request '${methodName}' (ID ${requestId}) failed to resolve within ${timeout} seconds; aborting.` );
+                                        if ( AlConduitClient.requests.hasOwnProperty( requestId ) ) {
+                                            //  The promise has not be resolved within the given timeout window
+                                            AlConduitClient.requests[requestId].reject( new Error( `Failed to receive response to '${methodName}' request within ${timeout}s` ) );
+                                            delete AlConduitClient.requests[requestId];
+                                        }
+                                    },
+                                    Math.floor( timeout * 1000 ) );
+            }
         } );
     }
 }
