@@ -10,7 +10,7 @@ export class AlConduitClient
     protected static conduitOrigin:string;
     protected static refCount:number = 0;
     protected static ready = new AlBehaviorPromise<boolean>();
-    protected static requests: { [requestId: string]: { resolve: any, reject: any } } = {};
+    protected static requests: { [requestId: string]: { resolve: any, reject: any, canceled: boolean } } = {};
     protected static externalSessions: { [locationId:string]:{promise?:Promise<void>,resolver:any} } = {};
     protected static requestIndex = 0;
 
@@ -36,7 +36,7 @@ export class AlConduitClient
         container.setAttribute("class", "conduit-container" );
         window.addEventListener( "message", this.onReceiveMessage, false );
         fragment.appendChild( container );
-        container.innerHTML = `<iframe frameborder="0" src="${AlConduitClient.conduitUri}" style="width:1px;height:1px;"></iframe>`;
+        container.innerHTML = `<iframe frameborder="0" src="${AlConduitClient.conduitUri}" style="width:1px;height:1px;position:absolute;left:-1px;top:-1px;"></iframe>`;
         return fragment;
     }
 
@@ -128,7 +128,7 @@ export class AlConduitClient
      * Retrieves a global resource.
      */
     public getGlobalResource( resourceName:string, ttl:number ): Promise<any> {
-        return this.request('conduit.getGlobalResource', { resourceName, ttl }, 5 )
+        return this.request('conduit.getGlobalResource', { resourceName, ttl }, 10 )
                             .then( response => {
                                 if ( ! response.resource ) {
                                     return Promise.reject( response.error || `AlConduitClient failed to retrieve global resource '${resourceName}'` );
@@ -187,6 +187,9 @@ export class AlConduitClient
         if (!AlConduitClient.requests.hasOwnProperty(requestId)) {
             console.warn(`Warning: received a conduit response to an unknown request with ID '${requestId}'; multiple clients running?` );
             return;
+        } else if ( AlConduitClient.requests[requestId].canceled ) {
+            console.warn(`Warning: received a conduit response after its timeout expired; discarding.` );
+            return;
         }
 
         AlConduitClient.requests[requestId].resolve( event.data );
@@ -224,7 +227,7 @@ export class AlConduitClient
     protected request( methodName: string, data: any = {}, timeout:number = 0 ): Promise<any> {
         const requestId = `conduit-request-${++AlConduitClient.requestIndex}-${Math.floor(Math.random() * 1000)}`;
         return new Promise<any>( ( resolve, reject ) => {
-            AlConduitClient.requests[requestId] = { resolve, reject };
+            AlConduitClient.requests[requestId] = { resolve, reject, canceled: false };
             AlConduitClient.ready.then( () => {
                 /**
                  * Requests can be queued at any time in the application's lifespan, even before the conduit iframe has been created or communications
@@ -236,11 +239,11 @@ export class AlConduitClient
             } );
             if ( timeout > 0 ) {
                 AlStopwatch.once(   () => {
-                                        console.warn(`Conduit Warning: request '${methodName}' (ID ${requestId}) failed to resolve within ${timeout} seconds; aborting.` );
                                         if ( AlConduitClient.requests.hasOwnProperty( requestId ) ) {
-                                            //  The promise has not be resolved within the given timeout window
+                                            //  The promise has not been resolved within the given timeout window
+                                            console.warn(`Conduit Warning: request '${methodName}' (ID ${requestId}) failed to resolve within ${timeout} seconds; aborting.` );
                                             AlConduitClient.requests[requestId].reject( new Error( `Failed to receive response to '${methodName}' request within ${timeout}s` ) );
-                                            delete AlConduitClient.requests[requestId];
+                                            AlConduitClient.requests[requestId].canceled = true;
                                         }
                                     },
                                     Math.floor( timeout * 1000 ) );
