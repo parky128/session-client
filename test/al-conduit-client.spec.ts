@@ -257,7 +257,7 @@ describe('AlConduitClient', () => {
         } );
 
         it( "should call through and clear existing request callbacks", () => {
-            AlConduitClient['requests']['fake-one'] = { resolve: () => { calledThrough = true; }, reject: () => {} };
+            AlConduitClient['requests']['fake-one'] = { resolve: () => { calledThrough = true; }, reject: () => {}, canceled: false };
             let event = generateMockRequest( 'conduit.getSession', null, 'fake-one' );
             conduitClient.onDispatchReply( event );
             expect( warnStub.callCount ).to.equal( 0 );
