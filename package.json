@@ -59,8 +59,8 @@
   },
   "dependencies": {
     "@al/aims": "^1.0.0",
-    "@al/client": "^1.0.0",
-    "@al/common": "^1.0.14",
+    "@al/client": "^1.0.3",
+    "@al/common": "^1.0.19",
     "@al/subscriptions": "^1.0.0",
     "auth0-js": "^9.11.1",
     "local-storage-fallback": "^4.1.1",
