@@ -64,7 +64,7 @@ export class AlSessionInstance
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
     this.notifyStream.siphon( this.client.events );
-    this.notifyStream.attach( "AlClientBeforeRequest", ( event:AlClientBeforeRequestEvent ) => {
+    this.notifyStream.attach( AlClientBeforeRequestEvent, ( event:AlClientBeforeRequestEvent ) => {
         if ( this.sessionIsActive ) {
             event.request.headers = event.request.headers || {};
             event.request.headers['X-AIMS-Auth-Token'] = this.getToken();

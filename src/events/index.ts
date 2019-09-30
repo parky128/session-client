@@ -1,4 +1,4 @@
-import { AlTriggeredEvent } from '@al/common';
+import { AlTrigger, AlTriggeredEvent } from '@al/common';
 import { AIMSUser, AIMSAccount } from '@al/client';
 import { AlEntitlementCollection } from '@al/subscriptions';
 import { AlSessionInstance } from '../al-session';
@@ -6,21 +6,23 @@ import { AlSessionInstance } from '../al-session';
 /**
  * AlSessionStartedEvent is broadcast by an AlSessionInstance whenever a new session is created by a successful authentication.
  */
-export class AlSessionStartedEvent extends AlTriggeredEvent
+@AlTrigger( 'AlSessionStarted' )
+export class AlSessionStartedEvent extends AlTriggeredEvent<void>
 {
     constructor( public user:AIMSUser,
                  public primaryAccount:AIMSAccount ) {
-        super( "AlSessionStarted" );
+        super();
     }
 }
 
 /**
  * AlSessionEndedEvent is broadcast by an AlSessionInstance whenever an existing session is destroyed.
  */
-export class AlSessionEndedEvent extends AlTriggeredEvent
+@AlTrigger( 'AlSessionEnded' )
+export class AlSessionEndedEvent extends AlTriggeredEvent<void>
 {
     constructor( public session:AlSessionInstance ) {
-        super( "AlSessionEnded" );
+        super();
     }
 }
 
@@ -29,12 +31,13 @@ export class AlSessionEndedEvent extends AlTriggeredEvent
  * This event should be regarded as the *beginning* of the account change process, and provides attentive services to opportunity to
  * flush any account-specific stateful data and any views to evaluate whether they are still valid.
  */
-export class AlActingAccountChangedEvent extends AlTriggeredEvent
+@AlTrigger( 'AlActingAccountChanged' )
+export class AlActingAccountChangedEvent extends AlTriggeredEvent<void>
 {
     constructor( public previousAccount:AIMSAccount,
                  public actingAccount:AIMSAccount,
                  public session:AlSessionInstance ) {
-        super( "AlActingAccountChanged" );
+        super();
     }
 }
 
@@ -43,24 +46,25 @@ export class AlActingAccountChangedEvent extends AlTriggeredEvent
  * and its roles, entitlements, and managed children have been retrieved from their respective services.  This event is the second half of the process
  * whose beginning is indicated by AlActingAccountChangedEvent.
  */
-export class AlActingAccountResolvedEvent extends AlTriggeredEvent
+@AlTrigger( 'AlActingAccountResolved' )
+export class AlActingAccountResolvedEvent extends AlTriggeredEvent<void>
 {
     constructor( public actingAccount:AIMSAccount,
                  public managedAccounts:AIMSAccount[],
                  public entitlements:AlEntitlementCollection ) {
-        super( "AlActingAccountResolved" );
+        super();
     }
 }
 
 /**
  * AlActiveDatacenterChangedEvent is broadcast by an AlSessionInstance whenever the active datacenter has been changed.
  */
-export class AlActiveDatacenterChangedEvent extends AlTriggeredEvent
+@AlTrigger( 'AlActiveDatacenterChanged' )
+export class AlActiveDatacenterChangedEvent extends AlTriggeredEvent<void>
 {
     constructor( public insightLocationId:string,
                  public residency:string,
                  public metadata:unknown ) {
-        super("AlActiveDatacenterChanged" );
-        console.log(`Notice: active datacenter changed to ${insightLocationId}/${residency}` );
+        super();
     }
 }
