@@ -1,5 +1,4 @@
-import { AlLocation, AlLocatorService } from '@al/common/locator';
-import { AlGlobalizer } from '@al/common';
+import { AlLocation, AlLocatorService, AlGlobalizer } from '@al/common';
 
 /**
  *  This is a simple prototype of the functionality on the segment analytics object
