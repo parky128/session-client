@@ -1,5 +1,7 @@
-import { AlStopwatch, AlBehaviorPromise } from '@al/common';
-import { AlLocation, AlLocatorService, AlLocationContext } from '@al/common/locator';
+import {
+    AlStopwatch, AlBehaviorPromise,
+    AlLocation, AlLocatorService, AlLocationContext
+} from '@al/common';
 import { AIMSSessionDescriptor } from '@al/aims';
 
 export class AlConduitClient

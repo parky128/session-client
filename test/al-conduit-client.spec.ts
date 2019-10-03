@@ -1,5 +1,5 @@
 import { AlConduitClient } from '../src/utilities';
-import { AlLocatorService, AlLocation, AlLocationContext } from '@al/common/locator';
+import { AlLocatorService, AlLocation, AlLocationContext } from '@al/common';
 import { ALClient } from '@al/client';
 import { AlStopwatch } from '@al/common';
 import { exampleSession } from './mocks/session-data.mocks';

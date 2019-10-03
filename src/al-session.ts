@@ -13,10 +13,10 @@ import {
     AlBehaviorPromise,
     AlGlobalizer, AlStopwatch,
     AlTriggerStream, AlTriggeredEvent,
-    AlResponseValidationError
+    AlResponseValidationError,
+    AlSchemaValidator,
+    AlLocatorService, AlInsightLocations
 } from '@al/common';
-import { AlSchemaValidator } from '@al/common/schema-validator';
-import { AlLocatorService, AlInsightLocations } from '@al/common/locator';
 import {
     AlSessionStartedEvent,
     AlSessionEndedEvent,
