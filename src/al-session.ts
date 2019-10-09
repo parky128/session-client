@@ -32,7 +32,7 @@ import {
   ALClient
 } from '@al/client';
 import { AIMSClient } from '@al/aims';
-import { AlEntitlementCollection, SubscriptionsClient } from '@al/subscriptions';
+import { AlEntitlementCollection, AlEntitlementRecord, SubscriptionsClient } from '@al/subscriptions';
 import { AlNullSessionDescriptor } from './null-session';
 
 
@@ -102,6 +102,28 @@ export class AlSessionInstance
                           error => {
                               console.warn("Failed to set the acting account", error );
                           } );
+        },
+        modifyEntitlements: ( commandSequence:string ) => {
+            //  This allows dynamic tweaking of entitlements using an economical sequence of string commands
+            let records:AlEntitlementRecord[] = [];
+            commandSequence.split(",").forEach( command => {
+                if ( command.startsWith( "+") ) {
+                    records.push( { productId: command.substring( 1 ), active: true, expires: new Date( 8640000000000000 ) } );
+                } else if ( command.startsWith( "-" ) ) {
+                    records.push( { productId: command.substring( 1 ), active: false, expires: new Date( 8640000000000000 ) } );
+                } else {
+                    console.warn(`Warning: don't know how to interpret '${command}'; ignoring` );
+                }
+            } );
+            this.resolutionGuard.then( () => {
+                try {
+                  this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this.sessionData.acting, this ) );
+                  this.resolvedAccount.entitlements.merge( records );
+                  this.notifyStream.trigger( this.resolvedAccount );
+                } catch( e ) {
+                  console.warn( e );
+                }
+            } );
         }
     } );
   }
@@ -515,9 +537,12 @@ export class AlSessionInstance
                       this.notifyStream.trigger( resolved );
 
                       return resolved;
+                    },
+                    error => {
+                      console.error(`Error: could not resolve the acting account to "${account.id}"`, error );
+                      return Promise.reject( error );
                     } );
   }
-
 
   /**
    * Persist our session
