@@ -8,14 +8,13 @@
  * @copyright 2019 Alert Logic, Inc.
  */
 
-import localStorageFallback from 'local-storage-fallback';
 import {
     AlBehaviorPromise,
     AlGlobalizer, AlStopwatch,
     AlTriggerStream, AlTriggeredEvent,
     AlResponseValidationError,
-    AlSchemaValidator,
-    AlLocatorService, AlInsightLocations
+    AlLocatorService, AlInsightLocations,
+    AlCabinet
 } from '@al/common';
 import {
     AlSessionStartedEvent,
@@ -60,6 +59,7 @@ export class AlSessionInstance
   protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null, [], new AlEntitlementCollection() );    //  Acting account's account record, child account list, and entitlements
   protected primaryEntitlements                 =   new AlEntitlementCollection();                                                  //  Primary account's entitlements
   protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //  This functions as a mutex so that access to resolvedAccount is only available at appropriate times
+  protected storage                             =   AlCabinet.persistent( "al_session" );
 
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
@@ -73,7 +73,7 @@ export class AlSessionInstance
     /**
     * Initialise whatever may be persisted
     */
-    const persistedSession = this.getStorage();
+    const persistedSession = this.storage.get("session") as AIMSSessionDescriptor;
     if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) && persistedSession.authentication.token_expiration >= this.getCurrentTimestamp() ) {
       try {
           this.setAuthentication(persistedSession);
@@ -82,7 +82,7 @@ export class AlSessionInstance
           console.warn(`Failed to reinstate session from localStorage: ${e.message}`, e );
       }
     } else {
-        localStorageFallback.removeItem('al_session');
+      this.storage.destroy();
     }
 
     /* istanbul ignore next */
@@ -172,9 +172,8 @@ export class AlSessionInstance
    * the change of state.
    */
   setAuthentication(proposal: AIMSSessionDescriptor) {
-    let validator = new AlSchemaValidator<AIMSSessionDescriptor>();
     try {
-      proposal = validator.validate( proposal, [ AIMSJsonSchematics.Authentication, AIMSJsonSchematics.Common ] );
+      this.validateSessionDescriptor( proposal );
     } catch( e ) {
       console.error("Failed to set authentication with malformed data: ", proposal );
       throw e;
@@ -195,7 +194,7 @@ export class AlSessionInstance
     } else {
         this.setActingAccount( proposal.authentication.account );
     }
-    this.setStorage();
+    this.storage.set("session", this.sessionData );
   }
 
   /**
@@ -238,7 +237,7 @@ export class AlSessionInstance
           accessible: account.accessible_locations
       } );
       this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
-      this.setStorage();
+      this.storage.set("session", this.sessionData );
       return this.resolveActingAccount( account );
     } else {
       return Promise.resolve( this.resolvedAccount );
@@ -252,7 +251,7 @@ export class AlSessionInstance
     if ( ! this.sessionData.boundLocationId || insightLocationId !== this.sessionData.boundLocationId ) {
       this.sessionData.boundLocationId = insightLocationId;
       AlLocatorService.setContext( { insightLocationId } );
-      this.setStorage();
+      this.storage.set( "session", this.sessionData );
       if ( AlInsightLocations.hasOwnProperty( insightLocationId ) ) {
           const metadata = AlInsightLocations[insightLocationId];
           this.notifyStream.trigger( new AlActiveDatacenterChangedEvent( insightLocationId, metadata.residency, metadata ) );
@@ -287,7 +286,7 @@ export class AlSessionInstance
   setTokenInfo(token: string, tokenExpiration: number) {
     this.sessionData.authentication.token = token;
     this.sessionData.authentication.token_expiration = tokenExpiration;
-    this.setStorage();
+    this.storage.set("session", this.sessionData );
   }
 
   /**
@@ -311,7 +310,7 @@ export class AlSessionInstance
   deactivateSession(): boolean {
     this.sessionData = JSON.parse(JSON.stringify(AlNullSessionDescriptor));
     this.sessionIsActive = false;
-    localStorageFallback.removeItem('al_session');
+    this.storage.destroy();
     this.notifyStream.trigger( new AlSessionEndedEvent( this ) );
     ALClient.defaultAccountId = null;
     return this.isActive();
@@ -545,19 +544,41 @@ export class AlSessionInstance
   }
 
   /**
-   * Persist our session
+   * This is a vastly simplified version of the json schema validator provided by AJV.  It isn't as thorough -- it doesn't descend into the 3rd tier of data structures
+   * or lower -- but it should be sufficient to validate that the right entities are being provided, and not require so many extraneous packages.
    */
-  private setStorage() {
-    if (this.sessionIsActive && this.sessionData && this.sessionData.hasOwnProperty( "authentication" ) ) {
-      localStorageFallback.setItem('al_session', JSON.stringify(this.sessionData));
+  protected validateSessionDescriptor( descriptor:any ):void {
+    const requireProps = ( target:any, properties:{[propName:string]:string}, jsonPath:string = '.' ) => {
+      Object.entries( properties ).forEach( ( [ propName, propType ] ) => {
+        if ( ! target.hasOwnProperty( propName ) || typeof( target[propName] ) !== propType ) {
+          throw new AlResponseValidationError( `The provided data does not match the schema for a session descriptor: ${jsonPath}.${propName} is missing or of the wrong type.` );
+        }
+      } );
+    };
+    if ( ! descriptor || ! descriptor.authentication ) {
+      throw new AlResponseValidationError("The provided data does not match the schema for a session descriptor" );
     }
-  }
-
-  /**
-   * Fetch persisted session
-   */
-  private getStorage() {
-    return JSON.parse(localStorageFallback.getItem('al_session'));
+    requireProps( descriptor.authentication, { 'token': 'string', 'token_expiration': 'number', 'user': 'object', 'account': 'object' }, '.authentication' );
+    requireProps( descriptor.authentication.user,
+                  {
+                    "id": "string",
+                    "name": "string",
+                    "email": "string",
+                    "linked_users": "object",
+                    "created": "object",
+                    "modified": "object"
+                  },
+                  '.authentication.user' );
+    requireProps( descriptor.authentication.account,
+                  {
+                    "id": "string",
+                    "name": "string",
+                    "accessible_locations": "object",
+                    "default_location": "string",
+                    "created": "object",
+                    "modified": "object"
+                  },
+                  '.authentication.account' );
   }
 }
 

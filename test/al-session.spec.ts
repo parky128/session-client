@@ -1,8 +1,8 @@
 import { ALSession, AlSessionInstance } from '../src/index';
+import { AlCabinet } from '@al/common';
 import { ALClient, AIMSSessionDescriptor, AIMSAccount, AlClientBeforeRequestEvent } from '@al/client';
 import { AIMSClient } from '@al/aims';
 import { SubscriptionsClient, AlEntitlementCollection } from '@al/subscriptions';
-import localStorageFallback from 'local-storage-fallback';
 import { exampleSession, exampleActing } from './mocks/session-data.mocks';
 import { expect, assert } from 'chai';
 import { describe, before } from 'mocha';
@@ -10,6 +10,7 @@ import * as sinon from 'sinon';
 
 describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
   let sessionDescriptor;
+  let storage = AlCabinet.persistent("al_session" );
   beforeEach(() => {
     sessionDescriptor = {
       authentication: {
@@ -55,7 +56,10 @@ describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
 
   describe('After setting the authentication value of the session object', () => {
     it('should persist this to local storage"', () => {
-      expect(JSON.parse(localStorageFallback.getItem('al_session')).authentication).to.deep.equal(sessionDescriptor.authentication);
+      let session = storage.get( "session" );
+      expect( session ).to.be.an( 'object' );
+      expect( session.authentication ).to.be.an( 'object' );
+      expect( session.authentication ).to.deep.equal( sessionDescriptor.authentication );
     });
   });
   describe('On retrieving the session token value', () => {
@@ -111,6 +115,7 @@ describe('ALSession - AIMSAuthentication value persistance Test Suite:', () => {
 
 describe('ALSession - Acting AIMSAccount value persistance Test Suite:', () => {
   let actingAccount: AIMSAccount;
+  let storage:AlCabinet = AlCabinet.persistent("al_session");
   beforeEach(() => {
     actingAccount = {
       id: '5',
@@ -132,7 +137,8 @@ describe('ALSession - Acting AIMSAccount value persistance Test Suite:', () => {
   });
   describe('After setting the acting account value of the session object', () => {
     it('should persist this to local storage"', () => {
-      expect(JSON.parse(localStorageFallback.getItem('al_session')).acting).to.deep.equal(actingAccount);
+      const auth = storage.get("session" );
+      expect(auth.acting).to.deep.equal(actingAccount);
     });
   });
   describe('On retrieving the session acting account ID value', () => {
@@ -189,6 +195,7 @@ describe('ALSession - Acting AIMSAccount value persistance Test Suite:', () => {
 });
 
 describe('After deactivating the session', () => {
+  let storage = AlCabinet.persistent("al_session" );
   beforeEach(() => {
     ALSession.deactivateSession();
   });
@@ -197,14 +204,15 @@ describe('After deactivating the session', () => {
     expect(ALSession.isActive() ).to.equal( false );
   });
   it('should set remove the local storage item', () => {
-    expect(localStorageFallback.getItem('al_session')).to.be.null;
+    expect( storage.get("session") ).to.equal( null );
   });
 });
 
 describe('AlSession', () => {
+  let storage = AlCabinet.persistent("al_session" );
   describe("constructor", () => {
     afterEach( () => {
-      localStorageFallback.removeItem( "al_session" );
+      storage.destroy();
     } );
     it( "should ignore expired session data on initialization", () => {
       let sessionDescriptor = {
@@ -246,10 +254,10 @@ describe('AlSession', () => {
             token_expiration: ( Date.now() / 1000 ) - ( 60 * 60 ),
         }
       };
-      localStorageFallback.setItem("al_session", JSON.stringify( sessionDescriptor ) );
+      storage.set("session", sessionDescriptor );
       let session = new AlSessionInstance();      //  sometimes it is easier to just not use singletons
       expect( session.isActive() ).to.equal( false );
-      expect( localStorageFallback.getItem("al_session") ).to.equal( null );
+      expect( storage.get("session" ) ).to.equal( null );
     } );
 
     it( "should deactivate/clean storage if it is invalid", () => {
@@ -264,7 +272,7 @@ describe('AlSession', () => {
       };
       let warnStub = sinon.stub( console, 'warn' );
       let errorStub = sinon.stub( console, 'error' );
-      localStorageFallback.setItem( "al_session", JSON.stringify( badSession ) );
+      storage.set("session", badSession );
       let session = new AlSessionInstance();
       expect( session.isActive() ).to.equal( false );
       expect( warnStub.callCount ).to.equal( 1 );
@@ -277,7 +285,7 @@ describe('AlSession', () => {
     } );
 
     it( "should authenticate localStorage if it is valid", () => {
-      localStorageFallback.setItem( "al_session", JSON.stringify( exampleSession ) );
+      storage.set("session", exampleSession );
       let session = new AlSessionInstance();
       expect( session.isActive() ).to.equal( true );
 
@@ -332,6 +340,10 @@ describe('AlSession', () => {
 
   describe( 'authentication methods', () => {
 
+    beforeEach( () => {
+        storage.destroy();
+    } );
+
     describe( 'by username and password', () => {
 
       it( "should authenticate properly given a valid client response", async () => {
@@ -342,7 +354,6 @@ describe('AlSession', () => {
         let result = await session.authenticate( "mcnielsen@alertlogic.com", "b1gB1rdL!ves!" );
         expect( session.isActive() ).to.equal( true );
         clientAuthStub.restore();
-        session.deactivateSession();
       } );
 
     } );

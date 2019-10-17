@@ -310,7 +310,7 @@ export class AlSessionDetector
     getTokenExpiration( token:string ) {
         const split = token.split('.');
         if (!split || split.length < 2 ) {
-            console.warn("Warning: unexpected JWT format causing existing session not to be recognized." );
+            console.warn("Warning: unexpected JWT format causing existing session not to be recognized.", token );
             return 0;
         }
         const base64Url = split[1];
