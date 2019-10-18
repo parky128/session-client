@@ -235,17 +235,26 @@ describe('AlSessionDetector', () => {
             } );
         } );
         describe("with an auth0 session", () => {
+            let getTokenInfoStub;
+            beforeEach( () => {
+                getTokenInfoStub = sinon.stub( AIMSClient, 'getTokenInfo' ).returns( Promise.resolve( exampleSession.authentication ) );
+            } );
+            afterEach( () => {
+                getTokenInfoStub.restore();
+            } );
             it( "should resolve true", ( done ) => {
                 ALSession.deactivateSession();
 
                 let auth0AuthStub = sinon.stub( sessionDetector, 'getAuth0Authenticator' ).returns( <WebAuth><unknown>{
                     checkSession: ( config, callback ) => {
+                        console.log("In checkSession mock!" );
                         callback( null, {
-                            accessToken: 'big-fake-access-token'
+                            accessToken: 'big-fake-access-token.' + window.btoa( JSON.stringify( { 'exp': Math.floor( ( Date.now() / 1000 ) + 86400 ) } ) )
                         } );
                     },
                     client: {
                         userInfo: ( accessToken, callback ) => {
+                            console.log("In UserInfo mock!" );
                             callback( null, {
                                 "https://alertlogic.com/": {
                                     sub: "2:10001000-1000"
@@ -261,9 +270,12 @@ describe('AlSessionDetector', () => {
                     getSessionStub.restore();
                     auth0AuthStub.restore();
                     expect( true ).to.equal( true );
+                    console.log("All done!" );
                     done();
                 }, error => {
                     expect( "Shouldn't get a promise rejection!").to.equal( false );
+                } ).catch( e => {
+                    expect("Shouldn't get an error" ).to.equal( false );
                 } );
             } );
         } );

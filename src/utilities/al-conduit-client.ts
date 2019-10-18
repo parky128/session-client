@@ -206,9 +206,11 @@ export class AlConduitClient
             return;
         }
         console.log(`Notice: received external session confirmation for location [${event.data.locationId}]` );
-        if ( AlConduitClient.externalSessions.hasOwnProperty( event.data.locationId ) ) {
-            AlConduitClient.externalSessions[event.data.locationId].resolver();
-        } else {
+        const session = AlConduitClient.externalSessions.hasOwnProperty( event.data.locationId ) ? AlConduitClient.externalSessions[event.data.locationId] : null;
+
+        if ( session && session.resolver ) {
+            session.resolver();
+        } else if ( ! session ) {
             AlConduitClient.externalSessions[event.data.locationId] = {
                 promise: Promise.resolve(),
                 resolver: null
