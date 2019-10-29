@@ -22,6 +22,7 @@ export const AlNullSessionDescriptor: AIMSSessionDescriptor = {
           at: 0,
           by: '',
         },
+        linked_users: []
       },
       account: {
         id: '0',
