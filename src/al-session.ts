@@ -13,7 +13,7 @@ import {
     AlGlobalizer, AlStopwatch,
     AlTriggerStream, AlTriggeredEvent,
     AlResponseValidationError,
-    AlLocatorService, AlInsightLocations,
+    AlLocation, AlLocatorService, AlInsightLocations,
     AlCabinet
 } from '@al/common';
 import {
@@ -33,7 +33,11 @@ import {
 import { AIMSClient } from '@al/aims';
 import { AlEntitlementCollection, AlEntitlementRecord, SubscriptionsClient } from '@al/subscriptions';
 import { AlNullSessionDescriptor } from './null-session';
+import { AlConsolidatedAccountMetadata } from './types';
 
+export interface AlSessionOptions {
+    resolveAccountMetadata?:boolean;
+}
 
 /**
  * AlSessionInstance maintains session data for a specific session.
@@ -60,6 +64,9 @@ export class AlSessionInstance
   protected primaryEntitlements                 =   new AlEntitlementCollection();                                                  //  Primary account's entitlements
   protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //  This functions as a mutex so that access to resolvedAccount is only available at appropriate times
   protected storage                             =   AlCabinet.persistent( "al_session" );
+  protected options:AlSessionOptions = {
+    resolveAccountMetadata: true
+  };
 
   constructor( client:AlApiClient = null ) {
     this.client = client || AlDefaultClient;
@@ -128,6 +135,20 @@ export class AlSessionInstance
     } );
   }
 
+  public reset( flushClientCache:boolean = false ) {
+    if ( this.isActive() ) {
+      this.deactivateSession();
+    }
+    AlLocatorService.reset();
+    if ( flushClientCache ) {
+      ALClient.reset();
+    }
+  }
+
+  public setOptions( options:AlSessionOptions ) {
+    this.options = Object.assign( this.options, options );
+  }
+
   public async authenticate( username:string, passphrase:string, mfaCode?:string ):Promise<boolean> {
     return new Promise<boolean>( ( resolve, reject ) => {
       this.client.authenticate( username, passphrase, mfaCode )
@@ -171,7 +192,7 @@ export class AlSessionInstance
    * Successful completion of this action triggers an AlSessionStartedEvent so that non-causal elements of an application can respond to
    * the change of state.
    */
-  setAuthentication(proposal: AIMSSessionDescriptor) {
+  setAuthentication( proposal: AIMSSessionDescriptor ) {
     try {
       this.validateSessionDescriptor( proposal );
     } catch( e ) {
@@ -229,6 +250,11 @@ export class AlSessionInstance
     this.setActiveDatacenter( targetLocationId );
 
     ALClient.defaultAccountId           = account.id;
+
+    if ( ! this.options.resolveAccountMetadata ) {
+      this.resolvedAccount = new AlActingAccountResolvedEvent( account, null, null );
+      return Promise.resolve( this.resolvedAccount );
+    }
 
     if ( actingAccountChanged || ! this.resolutionGuard.isFulfilled() ) {
       this.resolutionGuard.rescind();
@@ -400,6 +426,13 @@ export class AlSessionInstance
     return this.sessionData.authentication.token_expiration;
   }
 
+  /*
+   * Returns the entire acting user record
+   */
+  getUser(): AIMSUser {
+    return this.sessionData.authentication.user;
+  }
+
   /**
    * Get User ID
    */
@@ -541,6 +574,27 @@ export class AlSessionInstance
                       console.error(`Error: could not resolve the acting account to "${account.id}"`, error );
                       return Promise.reject( error );
                     } );
+  }
+
+  protected async resolveActingAccountConsolidated( account:AIMSAccount ) {
+    const request = {
+      service_stack: AlLocation.GestaltAPI,
+      service_name: undefined,
+      version: undefined,
+      path: `/account/${account.id}/metadata`,
+      retry_count: 4,
+      retry_interval: 1000
+    };
+    try {
+      let metadata = await ALClient.get( request ) as AlConsolidatedAccountMetadata;
+      this.resolvedAccount = new AlActingAccountResolvedEvent( metadata.actingAccount, metadata.managedAccounts, AlEntitlementCollection.import( metadata.effectiveEntitlements ) );
+      this.resolutionGuard.resolve( true );
+      this.notifyStream.trigger( this.resolvedAccount );
+      return this.resolvedAccount;
+    } catch( e ) {
+      console.warn("Failed to retrieve consolidated account metadata: falling back to default resolution method.", e );
+      return this.resolveActingAccount( account );
+    }
   }
 
   /**
