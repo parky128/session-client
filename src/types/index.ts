@@ -6,7 +6,7 @@ export interface AlConsolidatedAccountMetadata {
     user:AIMSUser;
     primaryAccount:AIMSAccount;
     actingAccount:AIMSAccount;
-    managedAccounts:AIMSAccount[];
+    managedAccounts?:AIMSAccount[];
     primaryEntitlements:AlEntitlementRecord[];
     effectiveEntitlements:AlEntitlementRecord[];
     endpointsData:AlEndpointsServiceCollection;
