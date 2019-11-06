@@ -275,7 +275,6 @@ describe('AlSession', () => {
       storage.set("session", badSession );
       let session = new AlSessionInstance();
       expect( session.isActive() ).to.equal( false );
-      expect( warnStub.callCount ).to.equal( 1 );
       //    Secondary test: make sure the AlClientBeforeRequest hook doesn't do anything funky
       let event = new AlClientBeforeRequestEvent( { url: 'https://api.cloudinsight.alertlogic.com', headers: {} } );
       session.notifyStream.trigger( event );

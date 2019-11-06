@@ -161,9 +161,6 @@ describe('AlSessionDetector', () => {
                 authentication: {
                     token: "blahblahblah",
                     token_expiration: ( Date.now() / 1000 ) + 20000,
-                    user: {
-                        id: "wrong"
-                    },
                     account: {
                         id: "wronger"
                     }
