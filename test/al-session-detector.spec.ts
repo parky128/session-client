@@ -176,6 +176,7 @@ describe('AlSessionDetector', () => {
         } );
         it( "should normalize and ingest a valid session descriptor", async () => {
             let normalizeStub = sinon.stub( sessionDetector, 'normalizeSessionDescriptor' ).returns( Promise.resolve( exampleSession ) );
+            ALSession.setOptions( { resolveAccountMetadata: false } );
             await sessionDetector.ingestExistingSession( {
                 authentication: {
                     token: exampleSession.authentication.token,
@@ -186,6 +187,7 @@ describe('AlSessionDetector', () => {
             } );
             expect( sessionDetector.authenticated ).to.equal( true );
             expect( errorStub.callCount ).to.equal( 0 );
+            ALSession.setOptions( { resolveAccountMetadata: true } );
             normalizeStub.restore();
         } );
     } );
