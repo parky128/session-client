@@ -148,7 +148,7 @@ export class AlSessionDetector
     ingestExistingSession = async ( proposedSession: AIMSSessionDescriptor ):Promise<boolean> => {
         let session = await this.normalizeSessionDescriptor( proposedSession );
         try {
-            ALSession.setAuthentication( session );
+            await ALSession.setAuthentication( session );
             this.authenticated = ALSession.isActive();
             return true;
         } catch( e ) {

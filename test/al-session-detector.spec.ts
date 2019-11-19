@@ -1,5 +1,5 @@
 import { AlSessionDetector, AlConduitClient } from '../src/utilities';
-import { ALSession } from '../src';
+import { ALSession, AlActingAccountResolvedEvent } from '../src';
 import { AIMSClient, AIMSAuthentication, AIMSSessionDescriptor } from '@al/aims';
 import { exampleSession } from './mocks/session-data.mocks';
 import { expect } from 'chai';
@@ -176,6 +176,7 @@ describe('AlSessionDetector', () => {
         } );
         it( "should normalize and ingest a valid session descriptor", async () => {
             let normalizeStub = sinon.stub( sessionDetector, 'normalizeSessionDescriptor' ).returns( Promise.resolve( exampleSession ) );
+            ALSession.setOptions( { resolveAccountMetadata: false } );
             await sessionDetector.ingestExistingSession( {
                 authentication: {
                     token: exampleSession.authentication.token,
@@ -186,6 +187,7 @@ describe('AlSessionDetector', () => {
             } );
             expect( sessionDetector.authenticated ).to.equal( true );
             expect( errorStub.callCount ).to.equal( 0 );
+            ALSession.setOptions( { resolveAccountMetadata: true } );
             normalizeStub.restore();
         } );
     } );
@@ -220,11 +222,13 @@ describe('AlSessionDetector', () => {
             it( "should resolve true", ( done ) => {
                 ALSession.deactivateSession();
                 let getSessionStub = sinon.stub( conduit, 'getSession' ).returns( Promise.resolve( exampleSession ) );
+                let ingestSessionStub = sinon.stub( sessionDetector, 'ingestExistingSession' ).returns( Promise.resolve( true ) );
                 sessionDetector.detectSession().then( result => {
                     expect( result ).to.equal( true );
                     expect( sessionDetector.authenticated ).to.equal( true );
                     sessionDetector.onDetectionFail( () => {} );      //  kill the promise
                     getSessionStub.restore();
+                    ingestSessionStub.restore();
                     done();
                 }, error => {
                     expect( "Shouldn't get a promise rejection!").to.equal( false );
@@ -261,11 +265,12 @@ describe('AlSessionDetector', () => {
                     }
                 } );
                 let getSessionStub = sinon.stub( conduit, 'getSession' ).returns( Promise.resolve( null ) );
-
+                let ingestSessionStub = sinon.stub( sessionDetector, 'ingestExistingSession' ).returns( Promise.resolve( true ) );
                 sessionDetector.detectSession().then( result => {
                     sessionDetector.onDetectionFail( () => {} );      //  kill the promise
                     getSessionStub.restore();
                     auth0AuthStub.restore();
+                    ingestSessionStub.restore();
                     expect( true ).to.equal( true );
                     console.log("All done!" );
                     done();
