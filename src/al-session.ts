@@ -160,7 +160,7 @@ export class AlSessionInstance
 
     public async authenticate( username:string, passphrase:string, mfaCode?:string ):Promise<boolean> {
       return new Promise<boolean>( ( resolve, reject ) => {
-        this.client.authenticate( username, passphrase, mfaCode )
+        this.client.authenticate( username, passphrase, mfaCode, true )
           .then(  session => {
                     this.setAuthentication( session );
                     resolve( true );
@@ -171,7 +171,7 @@ export class AlSessionInstance
 
     public authenticateWithSessionToken( sessionToken:string, mfaCode:string ):Promise<boolean> {
       return new Promise<boolean>( ( resolve, reject ) => {
-        this.client.authenticateWithMFASessionToken( sessionToken, mfaCode )
+        this.client.authenticateWithMFASessionToken( sessionToken, mfaCode, true )
           .then(  session => {
                     this.setAuthentication( session );
                     resolve( true );
