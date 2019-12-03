@@ -248,14 +248,12 @@ describe('AlSessionDetector', () => {
 
                 let auth0AuthStub = sinon.stub( sessionDetector, 'getAuth0Authenticator' ).returns( <WebAuth><unknown>{
                     checkSession: ( config, callback ) => {
-                        console.log("In checkSession mock!" );
                         callback( null, {
                             accessToken: 'big-fake-access-token.' + window.btoa( JSON.stringify( { 'exp': Math.floor( ( Date.now() / 1000 ) + 86400 ) } ) )
                         } );
                     },
                     client: {
                         userInfo: ( accessToken, callback ) => {
-                            console.log("In UserInfo mock!" );
                             callback( null, {
                                 "https://alertlogic.com/": {
                                     sub: "2:10001000-1000"
@@ -272,7 +270,6 @@ describe('AlSessionDetector', () => {
                     auth0AuthStub.restore();
                     ingestSessionStub.restore();
                     expect( true ).to.equal( true );
-                    console.log("All done!" );
                     done();
                 }, error => {
                     expect( "Shouldn't get a promise rejection!").to.equal( false );
