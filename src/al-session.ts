@@ -87,16 +87,20 @@ export class AlSessionInstance
           }
       } );
       /**
-      * Initialise whatever may be persisted
-      */
+       * Attempt to recreate a persisted session.  Note that the timeout below (really just an execution deferral, given the 0ms) prevents any
+       * API requests from being fired before whatever application has imported us has had a chance to bootstrap.
+       */
       const persistedSession = this.storage.get("session") as AIMSSessionDescriptor;
       if ( persistedSession && persistedSession.hasOwnProperty( "authentication" ) && persistedSession.authentication.token_expiration >= this.getCurrentTimestamp() ) {
-        try {
-            this.setAuthentication(persistedSession);
-        } catch( e ) {
-            this.deactivateSession();
-            console.warn(`Failed to reinstate session from localStorage: ${e.message}`, e );
-        }
+        setTimeout( () => {
+                        try {
+                            this.setAuthentication(persistedSession);
+                        } catch( e ) {
+                            this.deactivateSession();
+                            console.warn(`Failed to reinstate session from localStorage: ${e.message}`, e );
+                        }
+                    },
+                    0 );
       } else {
         this.storage.destroy();
       }
