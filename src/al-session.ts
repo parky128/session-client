@@ -267,7 +267,11 @@ export class AlSessionInstance
       ALClient.defaultAccountId           = account.id;
 
       if ( ! this.options.resolveAccountMetadata ) {
+        //  If metadata resolution is disabled, still trigger changed/resolved events with basic data
         this.resolvedAccount = new AlActingAccountResolvedEvent( account, null, null );
+        this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, account, this ) );
+        this.resolutionGuard.resolve(true);
+        this.notifyStream.trigger( this.resolvedAccount );
         return Promise.resolve( this.resolvedAccount );
       }
 
@@ -340,9 +344,12 @@ export class AlSessionInstance
       if ( this.sessionData.authentication.token_expiration > this.getCurrentTimestamp()) {
         this.sessionIsActive = true;
       }
-      if ( this.sessionIsActive && ! wasActive ) {
+      if ( this.sessionIsActive ) {
+        SubscriptionsClient.setInternalUser( this.getPrimaryAccountId() === "2" );
+        if ( ! wasActive ) {
           this.notifyStream.tap();        //  *always* get notifyStream flowing at this point, so that we can intercept AlBeforeRequestEvents
           this.notifyStream.trigger( new AlSessionStartedEvent( this.sessionData.authentication.user, this.sessionData.authentication.account ) );
+        }
       }
       return this.isActive();
     }
