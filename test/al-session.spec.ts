@@ -211,7 +211,16 @@ describe('After deactivating the session', () => {
 describe('AlSession', () => {
   let storage = AlCabinet.persistent("al_session" );
   describe("constructor", () => {
+    let accountDetailsStub, managedAccountsStub, entitlementsStub;
+    beforeEach( () => {
+      accountDetailsStub = sinon.stub( AIMSClient, 'getAccountDetails' ).returns( Promise.resolve( exampleSession.authentication.account ) );
+      managedAccountsStub = sinon.stub( AIMSClient, 'getManagedAccounts' ).returns( Promise.resolve( [] ) );
+      entitlementsStub = sinon.stub( SubscriptionsClient, 'getEntitlements' ).resolves( new AlEntitlementCollection() );
+    } );
     afterEach( () => {
+      accountDetailsStub.restore();
+      managedAccountsStub.restore();
+      entitlementsStub.restore();
       storage.destroy();
     } );
     it( "should ignore expired session data on initialization", () => {
@@ -283,9 +292,10 @@ describe('AlSession', () => {
       errorStub.restore();
     } );
 
-    it( "should authenticate localStorage if it is valid", () => {
+    it( "should authenticate localStorage if it is valid", async () => {
       storage.set("session", exampleSession );
       let session = new AlSessionInstance();
+      await session.resolved();
       expect( session.isActive() ).to.equal( true );
 
       //    Secondary test: make sure the AlClientBeforeRequest hook works
