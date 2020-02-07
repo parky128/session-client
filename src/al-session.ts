@@ -268,7 +268,7 @@ export class AlSessionInstance
 
       if ( ! this.options.resolveAccountMetadata ) {
         //  If metadata resolution is disabled, still trigger changed/resolved events with basic data
-        this.resolvedAccount = new AlActingAccountResolvedEvent( account, null, null );
+        this.resolvedAccount = new AlActingAccountResolvedEvent( account, [], new AlEntitlementCollection() );
         this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, account, this ) );
         this.resolutionGuard.resolve(true);
         this.notifyStream.trigger( this.resolvedAccount );
