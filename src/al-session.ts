@@ -162,29 +162,29 @@ export class AlSessionInstance
       this.options = Object.assign( this.options, options );
     }
 
-    public async authenticate( username:string, passphrase:string, mfaCode?:string ):Promise<boolean> {
+    public async authenticate( username:string, passphrase:string, options:{actingAccount?:string|AIMSAccount,locationId?:string} = {} ):Promise<boolean> {
       return new Promise<boolean>( ( resolve, reject ) => {
-        this.client.authenticate( username, passphrase, mfaCode, true )
+        this.client.authenticate( username, passphrase, undefined, true )
           .then(  session => {
-                    this.setAuthentication( session );
+                    this.setAuthentication( session, options );
                     resolve( true );
                   },
                   error => reject( error ) );
       } );
     }
 
-    public authenticateWithSessionToken( sessionToken:string, mfaCode:string ):Promise<boolean> {
+    public authenticateWithSessionToken( sessionToken:string, mfaCode:string, options:{actingAccount?:string|AIMSAccount,locationId?:string} = {} ):Promise<boolean> {
       return new Promise<boolean>( ( resolve, reject ) => {
         this.client.authenticateWithMFASessionToken( sessionToken, mfaCode, true )
           .then(  session => {
-                    this.setAuthentication( session );
+                    this.setAuthentication( session, options );
                     resolve( true );
                   },
                   error => reject( error ) );
       } );
     }
 
-    public async authenticateWithAccessToken( accessToken:string ):Promise<boolean> {
+    public async authenticateWithAccessToken( accessToken:string, options:{actingAccount?:string|AIMSAccount,locationId?:string} = {} ):Promise<boolean> {
       return AIMSClient.getTokenInfo( accessToken ).then( tokenInfo => {
         let session:AIMSSessionDescriptor = {
           authentication: {
@@ -194,7 +194,7 @@ export class AlSessionInstance
             token_expiration: tokenInfo.token_expiration
           }
         };
-        this.setAuthentication( session );
+        this.setAuthentication( session, options );
         return true;
       } );
     }
@@ -205,7 +205,7 @@ export class AlSessionInstance
      * Successful completion of this action triggers an AlSessionStartedEvent so that non-causal elements of an application can respond to
      * the change of state.
      */
-    public async setAuthentication( proposal: AIMSSessionDescriptor ):Promise<AlActingAccountResolvedEvent> {
+    public async setAuthentication( proposal: AIMSSessionDescriptor, options:{actingAccount?:string|AIMSAccount,locationId?:string} = {} ):Promise<AlActingAccountResolvedEvent> {
       try {
         this.validateSessionDescriptor( proposal );
       } catch( e ) {
@@ -222,9 +222,14 @@ export class AlSessionInstance
       Object.assign( this.sessionData.authentication.account, proposal.authentication.account );
       this.sessionData.authentication.token = proposal.authentication.token;
       this.sessionData.authentication.token_expiration = proposal.authentication.token_expiration;
+      if ( options.locationId ) {
+          this.sessionData.boundLocationId = options.locationId;
+      }
       this.activateSession();
       let result:AlActingAccountResolvedEvent;
-      if ( proposal.acting ) {
+      if ( options.actingAccount ) {
+          result = await this.setActingAccount( options.actingAccount );
+      } else if ( proposal.acting ) {
           result = await this.setActingAccount( proposal.acting );
       } else {
           result = await this.setActingAccount( proposal.authentication.account );
