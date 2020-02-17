@@ -397,6 +397,25 @@ describe('AlSession', () => {
 
     } );
 
+    describe( 'with acting account/location override', () => {
+      it("should work", async () => {
+        let session = new AlSessionInstance();
+        let clientAuthStub = sinon.stub( ALClient, 'authenticate' ).returns( Promise.resolve( exampleSession ) );
+
+        let fakeAccount = {
+          id: '6710880',
+          name: 'Big Bird & Friends, Inc.'
+        } as AIMSAccount;
+
+        expect( session.isActive() ).to.equal( false );
+        let result = await session.authenticate( "mcnielsen@alertlogic.com", "b1gB1rdL!ves!", { actingAccount: fakeAccount, locationId: "defender-uk-newport" } );
+        expect( session.isActive() ).to.equal( true );
+        expect( session.getActingAccountId() ).to.equal( "6710880" );
+        expect( session.getActiveDatacenter() ).to.equal( "defender-uk-newport" );
+        clientAuthStub.restore();
+      } );
+    } );
+
   } );
 
   describe( 'helper methods', () => {
