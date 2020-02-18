@@ -87,39 +87,61 @@ export class AlSessionDetector
                         try {
                             let authenticator = this.getAuth0Authenticator();
                             let config = this.getAuth0Config( { usePostMessage: true, prompt: 'none' } );
-                            authenticator.checkSession( config, ( error, authResult ) => {
-                                if ( error || ! authResult.accessToken ) {
-                                    return this.onDetectionFail( resolve, "Notice: AIMSAuthProvider.detectSession cannot detect any valid, existing session." );
-                                }
-
-                                this.getAuth0UserInfo( authenticator, authResult.accessToken, ( userInfoError, userIdentityInfo ) => {
-                                    if ( userInfoError || ! userIdentityInfo ) {
-                                        return this.onDetectionFail( resolve, "Auth0 session detection failure: failed to retrieve user information with valid session!");
-                                    }
-
-                                    let identityInfo = this.extractUserInfo( userIdentityInfo );
-                                    if ( identityInfo.accountId === null || identityInfo.userId === null ) {
-                                        return this.onDetectionFail( resolve, "Auth0 session detection failure: session lacks identity information!");
-                                    }
-
-                                    /* Missing properties (user, account, token_expiration) will be separately requested/calculated by normalizationSessionDescriptor */
-                                    let session:AIMSSessionDescriptor = {
-                                        authentication: {
-                                            token: authResult.accessToken,
-                                            token_expiration: null,
-                                            user: null,
-                                            account: null
-                                        }
-                                    };
-                                    this.ingestExistingSession( session )
-                                        .then(  () => {
-                                                    this.onDetectionSuccess( resolve );
+                            const checkSessionTimeoutMs = 5000;
+                            const checkSessionTimeoutErrorMsg = `Auth0 session detection failure: failed to retrieve user information within allotted time period (${checkSessionTimeoutMs}ms).`;
+                            let checkSessionTimeout = new Promise((resolve, reject) => {
+                              let id = setTimeout(() => {
+                                                  clearTimeout(id);
+                                                  resolve(checkSessionTimeoutErrorMsg);
                                                 },
-                                                error => {
-                                                    this.onDetectionFail( resolve, "Failed to ingest auth0 session" );
-                                                } );
-                                } );
-                            } );
+                                                  checkSessionTimeoutMs);
+                            });
+
+                            const checkSessionPromise = new Promise((resolve, reject) => {
+                                authenticator.checkSession( config, ( error, authResult ) => {
+                                  if ( error || ! authResult.accessToken ) {
+                                      return this.onDetectionFail( resolve, "Notice: AIMSAuthProvider.detectSession cannot detect any valid, existing session." );
+                                  }
+
+                                  this.getAuth0UserInfo( authenticator, authResult.accessToken, ( userInfoError, userIdentityInfo ) => {
+                                      if ( userInfoError || ! userIdentityInfo ) {
+                                          return this.onDetectionFail( resolve, "Auth0 session detection failure: failed to retrieve user information with valid session!");
+                                      }
+
+                                      let identityInfo = this.extractUserInfo( userIdentityInfo );
+                                      if ( identityInfo.accountId === null || identityInfo.userId === null ) {
+                                          return this.onDetectionFail( resolve, "Auth0 session detection failure: session lacks identity information!");
+                                      }
+
+                                      /* Missing properties (user, account, token_expiration) will be separately requested/calculated by normalizationSessionDescriptor */
+                                      let session:AIMSSessionDescriptor = {
+                                          authentication: {
+                                              token: authResult.accessToken,
+                                              token_expiration: null,
+                                              user: null,
+                                              account: null
+                                          }
+                                      };
+                                      this.ingestExistingSession( session )
+                                          .then(  () => {
+                                                      this.onDetectionSuccess( resolve );
+                                                  },
+                                                  error => {
+                                                      this.onDetectionFail( resolve, "Failed to ingest auth0 session" );
+                                                  } );
+                                  } );
+                              });
+                            });
+                            Promise.race([
+                              checkSessionTimeout,
+                              checkSessionPromise
+                            ]).then(value => {
+                              if(value === checkSessionTimeoutErrorMsg) {
+                                return this.onDetectionFail( resolve, checkSessionTimeoutErrorMsg);
+                              }
+                              return resolve(value as boolean);  // passing whatever from the onDetectionSuccess or onDetectionFail invocations
+                            });
+
                         } catch( e ) {
                             return this.onDetectionFail( resolve, `Unexpected error: encountered exception while checking session: ${e.toString()}`);
                         }

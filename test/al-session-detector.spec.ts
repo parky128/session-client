@@ -278,6 +278,50 @@ describe('AlSessionDetector', () => {
                 } );
             } );
         } );
+        describe("with no existing, local or auth0 session available", () => {
+          let clock: sinon.SinonFakeTimers;
+          beforeEach( () => {
+              clock = sinon.useFakeTimers();
+          } );
+          afterEach( () => {
+              clock.restore();
+          } );
+          it( "should resolve true", ( done ) => {
+              ALSession.deactivateSession();
+
+              let auth0AuthStub = sinon.stub( sessionDetector, 'getAuth0Authenticator' ).returns( <WebAuth><unknown>{
+                  checkSession: ( config, callback ) => {
+                    clock.tick(5100); // simulate delayed response, beyond our 5000ms default
+                      callback( null, {
+                          accessToken: 'big-fake-access-token.' + window.btoa( JSON.stringify( { 'exp': Math.floor( ( Date.now() / 1000 ) + 86400 ) } ) )
+                      } );
+                  },
+                  client: {
+                      userInfo: ( accessToken, callback ) => {
+                          callback( null, {
+                              "https://alertlogic.com/": {
+                                  sub: "2:10001000-1000"
+                              }
+                          } );
+                      }
+                  }
+              } );
+              let getSessionStub = sinon.stub( conduit, 'getSession' ).returns( Promise.resolve( null ) );
+              let ingestSessionStub = sinon.stub( sessionDetector, 'ingestExistingSession' ).returns( Promise.resolve( true ) );
+              sessionDetector.detectSession().then( result => {
+                  sessionDetector.onDetectionFail( () => {} );      //  kill the promise
+                  getSessionStub.restore();
+                  auth0AuthStub.restore();
+                  ingestSessionStub.restore();
+                  expect( true ).to.equal( true );
+                  done();
+              }, error => {
+                  expect( "Shouldn't get a promise rejection!").to.equal( false );
+              } ).catch( e => {
+                  expect("Shouldn't get an error" ).to.equal( false );
+              } );
+          } );
+      } );
     } );
 
 } );
