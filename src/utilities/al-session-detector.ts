@@ -6,7 +6,7 @@
  */
 
 import { WebAuth } from 'auth0-js';
-import { AlLocatorService, AlLocation, AlBehaviorPromise } from '@al/common';
+import { AlLocatorService, AlLocation, AlBehaviorPromise, AlStopwatch } from '@al/common';
 import { ALSession } from '../index';
 import { ALClient } from '@al/client';
 import { AIMSClient, AIMSSessionDescriptor, AIMSAuthentication, AIMSUser, AIMSAccount } from '@al/aims';
@@ -87,39 +87,38 @@ export class AlSessionDetector
                         try {
                             let authenticator = this.getAuth0Authenticator();
                             let config = this.getAuth0Config( { usePostMessage: true, prompt: 'none' } );
-                            authenticator.checkSession( config, ( error, authResult ) => {
-                                if ( error || ! authResult.accessToken ) {
-                                    return this.onDetectionFail( resolve, "Notice: AIMSAuthProvider.detectSession cannot detect any valid, existing session." );
-                                }
-
-                                this.getAuth0UserInfo( authenticator, authResult.accessToken, ( userInfoError, userIdentityInfo ) => {
-                                    if ( userInfoError || ! userIdentityInfo ) {
-                                        return this.onDetectionFail( resolve, "Auth0 session detection failure: failed to retrieve user information with valid session!");
-                                    }
-
-                                    let identityInfo = this.extractUserInfo( userIdentityInfo );
-                                    if ( identityInfo.accountId === null || identityInfo.userId === null ) {
-                                        return this.onDetectionFail( resolve, "Auth0 session detection failure: session lacks identity information!");
-                                    }
-
-                                    /* Missing properties (user, account, token_expiration) will be separately requested/calculated by normalizationSessionDescriptor */
-                                    let session:AIMSSessionDescriptor = {
-                                        authentication: {
-                                            token: authResult.accessToken,
-                                            token_expiration: null,
-                                            user: null,
-                                            account: null
+                            this.getAuth0SessionToken( authenticator, config, 5000 )
+                                .then( accessToken => {
+                                    this.getAuth0UserInfo( authenticator, accessToken, ( userInfoError, userIdentityInfo ) => {
+                                        if ( userInfoError || ! userIdentityInfo ) {
+                                            return this.onDetectionFail( resolve, "Auth0 session detection failure: failed to retrieve user information with valid session!");
                                         }
-                                    };
-                                    this.ingestExistingSession( session )
-                                        .then(  () => {
-                                                    this.onDetectionSuccess( resolve );
-                                                },
-                                                error => {
-                                                    this.onDetectionFail( resolve, "Failed to ingest auth0 session" );
-                                                } );
+
+                                        let identityInfo = this.extractUserInfo( userIdentityInfo );
+                                        if ( identityInfo.accountId === null || identityInfo.userId === null ) {
+                                            return this.onDetectionFail( resolve, "Auth0 session detection failure: session lacks identity information!");
+                                        }
+
+                                        /* Missing properties (user, account, token_expiration) will be separately requested/calculated by normalizationSessionDescriptor */
+                                        let session:AIMSSessionDescriptor = {
+                                            authentication: {
+                                                token: accessToken,
+                                                token_expiration: null,
+                                                user: null,
+                                                account: null
+                                            }
+                                        };
+                                        this.ingestExistingSession( session )
+                                            .then(  () => {
+                                                        this.onDetectionSuccess( resolve );
+                                                    },
+                                                    error => {
+                                                        this.onDetectionFail( resolve, "Failed to ingest auth0 session" );
+                                                    } );
+                                    } );
+                                }, error => {
+                                    this.onDetectionFail( resolve, `Auth0 session could not be detected within a 5second timeout interval: ${error.toString()}` );
                                 } );
-                            } );
                         } catch( e ) {
                             return this.onDetectionFail( resolve, `Unexpected error: encountered exception while checking session: ${e.toString()}`);
                         }
@@ -138,6 +137,24 @@ export class AlSessionDetector
         const loginUri = ALClient.resolveLocation(AlLocation.AccountsUI, '/#/login');
         const returnUri = window.location.origin + ((window.location.pathname && window.location.pathname.length > 1) ? window.location.pathname : "");
         this.redirect( `${loginUri}?return=${encodeURIComponent(returnUri)}&token=null`, "User is not authenticated; redirecting to login." );
+    }
+
+    protected async getAuth0SessionToken( authenticator:WebAuth, config:any, timeout:number ):Promise<string> {
+        return Promise.race( [ AlStopwatch.promise( timeout ),
+                             new Promise<string>( ( resolve, reject ) => {
+                                 authenticator.checkSession( config, ( error, authResult ) => {
+                                     if ( error || ! authResult.accessToken ) {
+                                         reject("auth0's checkSession method failed with an error" );
+                                     }
+                                     resolve( authResult.accessToken );
+                                 } );
+                             } ) ] )
+                        .then( ( accessToken:string|any ) => {
+                            if ( accessToken && typeof( accessToken ) === 'string' ) {
+                                return accessToken;
+                            }
+                            return Promise.reject("checkSession returned false or could not complete execution before timeout." );
+                        } );
     }
 
     /**
