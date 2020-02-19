@@ -116,8 +116,8 @@ export class AlSessionDetector
                                                         this.onDetectionFail( resolve, "Failed to ingest auth0 session" );
                                                     } );
                                     } );
-                                }, error => {
-                                    this.onDetectionFail( resolve, `Auth0 session could not be detected within a 5second timeout interval: ${error.toString()}` );
+                                },     error => {
+                                    this.onDetectionFail( resolve, `Auth0 session could not be detected within a 5 second timeout interval: ${error.toString()}` );
                                 } );
                         } catch( e ) {
                             return this.onDetectionFail( resolve, `Unexpected error: encountered exception while checking session: ${e.toString()}`);
@@ -137,24 +137,6 @@ export class AlSessionDetector
         const loginUri = ALClient.resolveLocation(AlLocation.AccountsUI, '/#/login');
         const returnUri = window.location.origin + ((window.location.pathname && window.location.pathname.length > 1) ? window.location.pathname : "");
         this.redirect( `${loginUri}?return=${encodeURIComponent(returnUri)}&token=null`, "User is not authenticated; redirecting to login." );
-    }
-
-    protected async getAuth0SessionToken( authenticator:WebAuth, config:any, timeout:number ):Promise<string> {
-        return Promise.race( [ AlStopwatch.promise( timeout ),
-                             new Promise<string>( ( resolve, reject ) => {
-                                 authenticator.checkSession( config, ( error, authResult ) => {
-                                     if ( error || ! authResult.accessToken ) {
-                                         reject("auth0's checkSession method failed with an error" );
-                                     }
-                                     resolve( authResult.accessToken );
-                                 } );
-                             } ) ] )
-                        .then( ( accessToken:string|any ) => {
-                            if ( accessToken && typeof( accessToken ) === 'string' ) {
-                                return accessToken;
-                            }
-                            return Promise.reject("checkSession returned false or could not complete execution before timeout." );
-                        } );
     }
 
     /**
@@ -348,4 +330,21 @@ export class AlSessionDetector
         return userData.exp;
     }
 
+    protected async getAuth0SessionToken( authenticator:WebAuth, config:any, timeout:number ):Promise<string> {
+      return Promise.race( [ AlStopwatch.promise( timeout ),
+                           new Promise<string>( ( resolve, reject ) => {
+                               authenticator.checkSession( config, ( error, authResult ) => {
+                                   if ( error || ! authResult.accessToken ) {
+                                       reject("auth0's checkSession method failed with an error" );
+                                   }
+                                   resolve( authResult.accessToken );
+                               } );
+                           } ) ] )
+                      .then( ( accessToken:string|any ) => {
+                          if ( accessToken && typeof( accessToken ) === 'string' ) {
+                              return accessToken;
+                          }
+                          return Promise.reject("checkSession returned false or could not complete execution before timeout." );
+                      } );
+    }
 }
