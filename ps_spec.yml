@@ -12,6 +12,7 @@ stages:
         compute_size: small
         commands:
             - npm install
+            - npm install -g Puppeteer
             - npm run test
             - npm run build
             - npx madge --circular --extensions ts --ts-config tsconfig.json src
