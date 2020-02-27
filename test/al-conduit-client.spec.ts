@@ -37,9 +37,8 @@ describe('AlConduitClient', () => {
     } );
 
     afterEach( () => {
-        stopwatchStub.restore();
-        warnStub.restore();
         AlLocatorService.setContext( originalContext );
+        sinon.restore();
     } );
 
     describe("after initialization", () => {
@@ -151,16 +150,12 @@ describe('AlConduitClient', () => {
 
             expect( warnStub.callCount ).to.equal( 0 );
             expect( dispatchStub.callCount ).to.equal( 0 );
-
-            dispatchStub.restore();
         } );
         it( "should handle conduit.ready message", () => {
             let readyStub = sinon.stub( conduitClient, 'onConduitReady' );
             let event = generateMockRequest( 'conduit.ready' );
             conduitClient.onReceiveMessage( event );
             expect( readyStub.callCount ).to.equal( 1 );
-
-            readyStub.restore();
         } );
         it( "should handle conduit.getSession, conduit.setSession, and conduit.deleteSession", () => {
             let dispatchStub = sinon.stub( conduitClient, 'onDispatchReply' );
@@ -175,8 +170,6 @@ describe('AlConduitClient', () => {
             conduitClient.onReceiveMessage( event );
 
             expect( dispatchStub.callCount ).to.equal( 3 );
-
-            dispatchStub.restore();
         } );
         it( "should handle conduit.getGlobalSetting, conduit.setGlobalSetting, and conduit.deleteGlobalSetting", () => {
             let dispatchStub = sinon.stub( conduitClient, 'onDispatchReply' );
@@ -191,16 +184,12 @@ describe('AlConduitClient', () => {
             conduitClient.onReceiveMessage( event );
 
             expect( dispatchStub.callCount ).to.equal( 3 );
-
-            dispatchStub.restore();
         } );
         it( "should handle conduit.getGlobalResource", () => {
             let dispatchStub = sinon.stub( conduitClient, 'onDispatchReply' );
 
             let event = generateMockRequest( 'conduit.getGlobalResource', { resourceName: 'navigation/cie-plus2', ttl: 60 } );
             conduitClient.onReceiveMessage( event );
-
-            dispatchStub.restore();
         } );
         it( "should warn about invalid message types", () => {
 

@@ -248,15 +248,14 @@ export class AlSessionInstance
      *
      * @returns A promise that resolves
      */
-    public setActingAccount( account: string|AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
+    public async setActingAccount( account: string|AIMSAccount ):Promise<AlActingAccountResolvedEvent> {
 
       if ( ! account ) {
         throw new Error("Usage error: setActingAccount requires an account ID or account descriptor." );
       }
       if ( typeof( account ) === 'string' ) {
-        return AIMSClient.getAccountDetails( account ).then( accountDetails => {
-          return this.setActingAccount( accountDetails );
-        } );
+        const accountDetails = await AIMSClient.getAccountDetails( account );
+        return await this.setActingAccount( accountDetails );
       }
 
       const previousAccount               = this.sessionData.acting;
@@ -288,7 +287,7 @@ export class AlSessionInstance
         } );
         this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, this.sessionData.acting, this ) );
         this.storage.set("session", this.sessionData );
-        return this.options.useConsolidatedResolver
+        return await this.options.useConsolidatedResolver
           ? this.resolveActingAccountConsolidated( account )
           : this.resolveActingAccount( account );
       } else {
