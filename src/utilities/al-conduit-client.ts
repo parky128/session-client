@@ -1,11 +1,15 @@
 import {
     AlStopwatch, AlBehaviorPromise,
-    AlLocation, AlLocatorService, AlLocationContext
+    AlLocation, AlLocatorService, AlLocationContext,
+    AlTriggerStream
 } from '@al/common';
 import { AIMSSessionDescriptor } from '@al/aims';
+import { AlDatacenterSessionEstablishedEvent } from '../events';
 
 export class AlConduitClient
 {
+    public static events:AlTriggerStream = new AlTriggerStream();
+
     protected static document:Document;
     protected static conduitUri:string;
     protected static conduitWindow:Window;
@@ -13,7 +17,8 @@ export class AlConduitClient
     protected static refCount:number = 0;
     protected static ready = new AlBehaviorPromise<boolean>();
     protected static requests: { [requestId: string]: { resolve: any, reject: any, canceled: boolean } } = {};
-    protected static externalSessions: { [locationId:string]:{promise?:Promise<void>,resolver:any} } = {};
+    protected static externalSessions: { [locationId:string]:{promise?:Promise<void>,resolver:any,resolved:boolean} } = {};
+
     protected static requestIndex = 0;
 
     constructor() {
@@ -55,19 +60,37 @@ export class AlConduitClient
     }
 
     /**
+     * Checks to see if a session with an external resource has been established.
+     *
+     * @param insightLocationId The external location ID.  If unspecified, AlLocatorService's context will be used by default.
+     * @returns Boolean true or false.
+     */
+    public checkExternalSession( insightLocationId?:string ):boolean {
+        let targetLocationId = insightLocationId || AlLocatorService.getContext().insightLocationId;
+        if ( AlConduitClient.externalSessions.hasOwnProperty( targetLocationId ) ) {
+            return AlConduitClient.externalSessions[targetLocationId].resolved;
+        }
+        return false;
+    }
+
+    /**
      * Waits for a session with an external resource to be established.
      *
-     * @param {string} insightLocationId The external location ID.  If unspecified, AlLocatorService's context will be used by default.
-     * @returns {Promise} A promise that resolves once the external resource's session has been established.
+     * @param insightLocationId The external location ID.  If unspecified, AlLocatorService's context will be used by default.
+     * @returns A promise that resolves once the external resource's session has been established.
      *
      * Please note that attempting to await an unknown or gibberishy location will return a promise that never resolves.
      */
-    public awaitExternalSession( insightLocationId:string = null ):Promise<void> {
+    public awaitExternalSession( insightLocationId?:string ):Promise<void> {
         let targetLocationId = insightLocationId || AlLocatorService.getContext().insightLocationId;
+        if ( this.checkExternalSession( targetLocationId ) ) {
+            return Promise.resolve();
+        }
         if ( ! AlConduitClient.externalSessions[targetLocationId] ) {
             let listener = {
                 promise: null,
-                resolver: null
+                resolver: null,
+                resolved: false
             };
             listener.promise = new Promise<void>( ( resolve, reject ) => {
                 listener.resolver = resolve;
@@ -208,14 +231,20 @@ export class AlConduitClient
         console.log(`Notice: received external session confirmation for location [${event.data.locationId}]` );
         const session = AlConduitClient.externalSessions.hasOwnProperty( event.data.locationId ) ? AlConduitClient.externalSessions[event.data.locationId] : null;
 
-        if ( session && session.resolver ) {
-            session.resolver();
-        } else if ( ! session ) {
+        if ( session ) {
+            session.resolved = true;
+            session.promise = Promise.resolve();
+            if ( session.resolver ) {
+                session.resolver( true );
+            }
+        } else {
             AlConduitClient.externalSessions[event.data.locationId] = {
                 promise: Promise.resolve(),
-                resolver: null
+                resolver: null,
+                resolved: true
             };
         }
+        AlConduitClient.events.trigger( new AlDatacenterSessionEstablishedEvent( event.data.locationId ) );
     }
 
     /**

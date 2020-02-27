@@ -68,3 +68,14 @@ export class AlActiveDatacenterChangedEvent extends AlTriggeredEvent<void>
         super();
     }
 }
+
+/**
+ * AlDatacenterSessionAvailable event is used by navigation layer to indicate when a given datacenter is ready to interact with.
+ */
+@AlTrigger( 'AlDatacenterSessionEstablished' )
+export class AlDatacenterSessionEstablishedEvent extends AlTriggeredEvent<void>
+{
+    constructor( public insightLocationId:string ) {
+        super();
+    }
+}
