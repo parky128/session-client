@@ -1,18 +1,7 @@
 version: 1.0
 service_name: session-client
 
-stages:
-    -
-        name: PR Test
-        when:
-            - pull_request
-        input:
-            repo: alertlogic/session-client
-        image: node:13
-        compute_size: small
-        commands:
-            - npm install
-            - npm install puppeteer
-            - npm run test
-            - npm run build
-            - npx madge --circular --extensions ts --ts-config tsconfig.json src
+import:
+    repo: alertlogic/nepal-common
+    branch: master
+    file: ps_spec.yml
