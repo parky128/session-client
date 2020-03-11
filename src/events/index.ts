@@ -2,6 +2,7 @@ import { AlTrigger, AlTriggeredEvent } from '@al/common';
 import { AIMSUser, AIMSAccount } from '@al/client';
 import { AlEntitlementCollection } from '@al/subscriptions';
 import { AlSessionInstance } from '../al-session';
+import { AlExperienceTree } from '../types/al-experience.types';
 
 /**
  * AlSessionStartedEvent is broadcast by an AlSessionInstance whenever a new session is created by a successful authentication.
@@ -43,15 +44,16 @@ export class AlActingAccountChangedEvent extends AlTriggeredEvent<void>
 
 /**
  * AlActingAccountResolvedEvent is broadcast by an AlSessionInstance whenever the acting account has been changed
- * and its roles, entitlements, and managed children have been retrieved from their respective services.  This event is the second half of the process
- * whose beginning is indicated by AlActingAccountChangedEvent.
+ * and its roles, entitlements (acting and primary), and other state data have been retrieved from their respective services.
+ * This event is the second half of the process whose beginning is indicated by AlActingAccountChangedEvent.
  */
 @AlTrigger( 'AlActingAccountResolved' )
 export class AlActingAccountResolvedEvent extends AlTriggeredEvent<void>
 {
     constructor( public actingAccount:AIMSAccount,
-                 public managedAccounts:AIMSAccount[],
-                 public entitlements:AlEntitlementCollection ) {
+                 public entitlements:AlEntitlementCollection,
+                 public primaryEntitlements:AlEntitlementCollection,
+                 public experiences:AlExperienceTree ) {
         super();
     }
 }
