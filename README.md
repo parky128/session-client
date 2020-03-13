@@ -142,3 +142,4 @@ To generate a development build for local testing - non minified, concatenated o
 
 Builds will be be generated into a `dist` folder and will contain commonjs and umd bundles that will be consumed depending on the module system in whichever environment you are using.
 
+
