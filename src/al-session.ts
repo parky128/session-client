@@ -33,7 +33,7 @@ import {
 import { AIMSClient } from '@al/aims';
 import { AlEntitlementCollection, AlEntitlementRecord, SubscriptionsClient } from '@al/subscriptions';
 import { AlNullSessionDescriptor } from './null-session';
-import { AlConsolidatedAccountMetadata } from './types';
+import { AlConsolidatedAccountMetadata, AlExperienceTree } from './types';
 
 export interface AlSessionOptions {
     /**
@@ -68,8 +68,11 @@ export class AlSessionInstance
      * Tracks when the acting account is changing (measured as interval between AlActingAccountChangedEvent and AlActingAccountResolvedEvent)
      * and allows systematic access to the last set of resolved data.
      */
-    protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null, [], new AlEntitlementCollection() );    //  Acting account's account record, child account list, and entitlements
-    protected primaryEntitlements                 =   new AlEntitlementCollection();                                                  //  Primary account's entitlements
+    protected resolvedAccount                     =   new AlActingAccountResolvedEvent( null,
+                                                                                        new AlEntitlementCollection(),
+                                                                                        new AlEntitlementCollection(),
+                                                                                        new AlExperienceTree() );
+    protected managedAccounts:AIMSAccount[]       =   [];
     protected resolutionGuard                     =   new AlBehaviorPromise<boolean>();                                               //  This functions as a mutex so that access to resolvedAccount is only available at appropriate times
     protected storage                             =   AlCabinet.persistent( "al_session" );
     protected options:AlSessionOptions = {
@@ -122,28 +125,6 @@ export class AlSessionInstance
                             error => {
                                 console.warn("Failed to set the acting account", error );
                             } );
-          },
-          modifyEntitlements: ( commandSequence:string ) => {
-              //  This allows dynamic tweaking of entitlements using an economical sequence of string commands
-              let records:AlEntitlementRecord[] = [];
-              commandSequence.split(",").forEach( command => {
-                  if ( command.startsWith( "+") ) {
-                      records.push( { productId: command.substring( 1 ), active: true, expires: new Date( 8640000000000000 ) } );
-                  } else if ( command.startsWith( "-" ) ) {
-                      records.push( { productId: command.substring( 1 ), active: false, expires: new Date( 8640000000000000 ) } );
-                  } else {
-                      console.warn(`Warning: don't know how to interpret '${command}'; ignoring` );
-                  }
-              } );
-              this.resolutionGuard.then( () => {
-                  try {
-                    this.notifyStream.trigger( new AlActingAccountChangedEvent( this.sessionData.acting, this.sessionData.acting, this ) );
-                    this.resolvedAccount.entitlements.merge( records );
-                    this.notifyStream.trigger( this.resolvedAccount );
-                  } catch( e ) {
-                    console.warn( e );
-                  }
-              } );
           }
       } );
     }
@@ -272,7 +253,7 @@ export class AlSessionInstance
 
       if ( ! this.options.resolveAccountMetadata ) {
         //  If metadata resolution is disabled, still trigger changed/resolved events with basic data
-        this.resolvedAccount = new AlActingAccountResolvedEvent( account, [], new AlEntitlementCollection() );
+          this.resolvedAccount = new AlActingAccountResolvedEvent( account, new AlEntitlementCollection(), new AlEntitlementCollection(), new AlExperienceTree() );
         this.notifyStream.trigger( new AlActingAccountChangedEvent( previousAccount, account, this ) );
         this.resolutionGuard.resolve(true);
         this.notifyStream.trigger( this.resolvedAccount );
@@ -525,11 +506,31 @@ export class AlSessionInstance
     }
 
     /**
+     * Retrieves the primary account's entitlements, or null if there is no session.
+     */
+    public getPrimaryEntitlementsSync():AlEntitlementCollection|null {
+      if ( ! this.sessionIsActive ) {
+        return null;
+      }
+      return this.resolvedAccount.primaryEntitlements;
+    }
+
+    /**
      * Convenience method to retrieve the entitlements for the primary account.
      * See caveats for `ALSession.authenticated` method, which also apply to this method.
      */
     public async getPrimaryEntitlements():Promise<AlEntitlementCollection> {
-      return this.resolutionGuard.then( () => this.primaryEntitlements );
+      return this.resolutionGuard.then( () => this.getPrimaryEntitlementsSync() );
+    }
+
+    /**
+     * Retrieves the acting account's entitlements, or null if there is no session.
+     */
+    public getEffectiveEntitlementsSync():AlEntitlementCollection|null {
+      if ( ! this.sessionIsActive || ! this.resolvedAccount ) {
+        return null;
+      }
+      return this.resolvedAccount.entitlements;
     }
 
     /**
@@ -545,7 +546,7 @@ export class AlSessionInstance
      * See caveats for `ALSession.authenticated` method, which also apply to this method.
      */
     public async getManagedAccounts():Promise<AIMSAccount[]> {
-      return this.resolutionGuard.then( () => this.resolvedAccount.managedAccounts );
+      return this.resolutionGuard.then( () => AIMSClient.getManagedAccounts( this.getActingAccountId(), { active: true } ) );
     }
 
     /**
@@ -566,10 +567,9 @@ export class AlSessionInstance
      * and then emit an AlActingAccountResolvedEvent through the session's notifyStream.
      */
     protected async resolveActingAccount( account:AIMSAccount ) {
-      const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null );
+      const resolved:AlActingAccountResolvedEvent = new AlActingAccountResolvedEvent( account, null, null, null );
       let dataSources:Promise<any>[] = [
           AIMSClient.getAccountDetails( account.id ),
-          AIMSClient.getManagedAccounts( this.getPrimaryAccountId(), { active: "true" } ),
           SubscriptionsClient.getEntitlements( this.getPrimaryAccountId() ) ];
 
       if ( account.id !== this.getPrimaryAccountId() ) {
@@ -579,19 +579,18 @@ export class AlSessionInstance
       return Promise.all( dataSources )
               .then(  dataObjects => {
                         const account:AIMSAccount                           =   dataObjects[0];
-                        const managedAccounts:AIMSAccount[]                 =   dataObjects[1];
-                        const entitlements:AlEntitlementCollection          =   dataObjects[2];
+                        const primaryEntitlements:AlEntitlementCollection   =   dataObjects[1];
                         let actingEntitlements:AlEntitlementCollection;
                         if ( dataObjects.length > 3 ) {
-                          actingEntitlements                                =   dataObjects[3];
+                          actingEntitlements                                =   dataObjects[2];
                         } else {
-                          actingEntitlements                                =   entitlements;
+                          actingEntitlements                                =   primaryEntitlements;
                         }
 
                         resolved.actingAccount      =   account;
-                        resolved.managedAccounts    =   managedAccounts;
-                        this.primaryEntitlements    =   entitlements;
+                        resolved.primaryEntitlements=   primaryEntitlements;
                         resolved.entitlements       =   actingEntitlements;
+                        resolved.experiences        =   new AlExperienceTree();
                         this.resolvedAccount        =   resolved;
                         this.resolutionGuard.resolve(true);
                         this.notifyStream.trigger( resolved );
@@ -605,25 +604,22 @@ export class AlSessionInstance
     }
 
     protected async resolveActingAccountConsolidated( account:AIMSAccount ) {
-      const needManagedAccounts = this.resolvedAccount.managedAccounts.length === 0;
       let request = {
         service_stack: AlLocation.GestaltAPI,
         service_name: undefined,
         version: undefined,
-        path: `/account/${account.id}/metadata`,
-        params: {
-          managed_accounts: needManagedAccounts
-        },
+          path: `/account/v1/${account.id}/metadata`,
         retry_count: 3,
         retry_interval: 1000
       };
       try {
         let metadata = await ALClient.get( request ) as AlConsolidatedAccountMetadata;
-        let managedAccounts = metadata.managedAccounts ? metadata.managedAccounts : this.resolvedAccount.managedAccounts;
+        let experiences = new AlExperienceTree( metadata.experiences );
         const resolved = new AlActingAccountResolvedEvent(
           metadata.actingAccount,
-          managedAccounts,
-          AlEntitlementCollection.import( metadata.effectiveEntitlements )
+          AlEntitlementCollection.import( metadata.effectiveEntitlements ),
+          AlEntitlementCollection.import( metadata.primaryEntitlements ),
+          experiences
         );
         this.resolvedAccount = resolved;
         this.resolutionGuard.resolve( true );

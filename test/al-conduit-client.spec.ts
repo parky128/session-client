@@ -301,4 +301,42 @@ describe('AlConduitClient', () => {
             }, 100 );
         } );
     } );
+
+    describe( ".checkExternalSession()", () => {
+        it("should return a value immediately based on location", () => {
+            AlConduitClient['externalSessions']['fake-location-id'] = {
+                resolver: null,
+                resolved: true,
+                promise: null
+            };
+            expect( conduitClient.checkExternalSession("defender-uk-newport") ).to.equal( false );
+            expect( conduitClient.checkExternalSession("fake-location-id") ).to.equal( true );
+            expect( conduitClient.checkExternalSession() ).to.equal( false );
+        } );
+    } );
+
+    xdescribe( ".awaitExternalSession()", () => {
+        it("should wait until a established message is received", async () => {
+            AlLocatorService.setActingUri("https://console.clouddefender.alertlogic.com" );     //  implies defender-us-denver location
+            let promise = conduitClient.awaitExternalSession();                                 //  should check for default location for user denver
+            conduitClient.onReceiveMessage( {
+                origin: "https://console.account.alertlogic.com",
+                source: {},
+                data: {
+                    type: "conduit.externalSessionReady",
+                    requestId: "NA",
+                    locationId: "defender-us-denver"
+                }
+            } );
+            await promise;
+            expect( true ).to.equal( true );
+        } );
+    } );
+
+    xdescribe( ".getGlobalResource()", () => {
+        it("should resolve promise with reply's payload", async () => {
+            let promise = conduitClient.getGlobalResource( "fake/resource/id", 100 );
+            await promise;
+        } );
+    } );
 } );

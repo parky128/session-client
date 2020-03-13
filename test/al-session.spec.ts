@@ -449,6 +449,17 @@ describe('AlSession', () => {
       } );
     } );
 
+    describe( ".getPrimaryEntitlementsSync()", () => {
+        it("should return null in an unauthenticated state", () => {
+            expect( session.getPrimaryEntitlementsSync() ).to.equal( null );
+        } );
+        it("should return viable entitlements if the session is authenticated", async () => {
+            session.setAuthentication( exampleSession );
+            await session.resolved();
+            expect( session.getPrimaryEntitlementsSync() ).to.equal( session['resolvedAccount']['primaryEntitlements'] );
+        } );
+    } );
+
     describe( ".getPrimaryEntitlements()", () => {
       it("should return the entitlements of the primary account after account resolution is finished", ( done ) => {
         session.getPrimaryEntitlements().then( primaryEntitlements => {
@@ -457,6 +468,17 @@ describe('AlSession', () => {
         } );
         session.setAuthentication( exampleSession );
       } );
+    } );
+
+    describe( ".getEffectiveEntitlementsSync()", () => {
+        it("should return null in an unauthenticated state", () => {
+            expect( session.getEffectiveEntitlementsSync() ).to.equal( null );
+        } );
+        it("should return viable entitlements if the session is authenticated", async () => {
+            session.setAuthentication( exampleSession );
+            await session.resolved();
+            expect( session.getEffectiveEntitlementsSync() ).to.equal( session['resolvedAccount'].entitlements );
+        } );
     } );
 
     describe( ".getEffectiveEntitlements()", () => {
@@ -473,7 +495,7 @@ describe('AlSession', () => {
       it("should return the list of accounts managed by the primary account after account resolution is finished", async () => {
         session.setAuthentication( exampleSession );
         let accountList = await session.getManagedAccounts();
-        expect( accountList ).to.equal( managedAccounts );
+        expect( accountList ).to.deep.equal( managedAccounts );
       } );
     } );
 
