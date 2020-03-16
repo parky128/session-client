@@ -581,7 +581,7 @@ export class AlSessionInstance
                         const account:AIMSAccount                           =   dataObjects[0];
                         const primaryEntitlements:AlEntitlementCollection   =   dataObjects[1];
                         let actingEntitlements:AlEntitlementCollection;
-                        if ( dataObjects.length > 3 ) {
+                        if ( dataObjects.length > 2 ) {
                           actingEntitlements                                =   dataObjects[2];
                         } else {
                           actingEntitlements                                =   primaryEntitlements;
